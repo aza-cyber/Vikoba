@@ -1,0 +1,24 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+.claude/
+*.iml
+
+# Generated platform folders (run `flutter create .` to regenerate)
+# android/
+# ios/
+# web/
+# windows/
+# macos/
+# linux/
+
+# Misc
+*.log
+.DS_Store

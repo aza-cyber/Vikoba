@@ -23,6 +23,10 @@ enum OfficerRole { chairperson, secretary, treasurer, keyHolder, mobilizer }
 /// Keeps the model layer free of Flutter imports — screens map this to icons.
 enum IconKey { savings, loan, fine, meeting }
 
+/// How often a group meets. Stored on [GroupRules.meetingFrequency] by its
+/// [Enum.name] ('weekly'|'biweekly'|'monthly').
+enum MeetingFrequency { weekly, biweekly, monthly }
+
 /// Resolves an enum from its [name], falling back to [fallback] for unknown or
 /// null values (so older saved data never crashes the app).
 T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
@@ -30,6 +34,177 @@ T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
     if (v.name == name) return v;
   }
   return fallback;
+}
+
+/// One configurable fine (its name and default amount in TZS). Part of a
+/// group's [GroupRules]; the fines screen offers these as quick presets.
+class FineType {
+  final String name;
+  final double amount;
+  const FineType(this.name, this.amount);
+
+  Map<String, dynamic> toJson() => {'name': name, 'amount': amount};
+
+  factory FineType.fromJson(Map<String, dynamic> j) => FineType(
+        (j['name'] ?? '').toString(),
+        (j['amount'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+/// A group's complete, editable rulebook — the single source of truth for every
+/// per-group setting (share price, loan terms, meeting cadence, quorum, fine
+/// catalogue). Online it comes from the backend `groups` row (via the snapshot's
+/// `rules` object) and is edited through `POST /settings/rules`; offline it is
+/// stored in the `group_settings` table. Screens read these values instead of
+/// the compile-time [GroupDefaults], so two groups can run different rules.
+class GroupRules {
+  final double shareValue;
+  final int minShares;
+  final int maxShares;
+  final double socialFundPerMtg;
+  final double interestRatePct; // % per month on loans
+  final int loanMultiplier; // borrow up to Nx the value of your shares
+  final int loanDurationMonths; // default repayment period offered
+  final int maxRepaymentMonths; // hard cap on repayment period
+  final int requiredGuarantors;
+  final int cycleMonths;
+  // Read-only cycle progress (how many months into the current cycle). Surfaced
+  // for the share-out screen; not edited via the settings screen.
+  final int cycleMonthsElapsed;
+  final int quorumPercent;
+  final String meetingFrequency; // weekly | biweekly | monthly
+  final String meetingStartTime; // 'HH:mm'
+  final String meetingLocation;
+  final List<FineType> fineTypes;
+
+  const GroupRules({
+    required this.shareValue,
+    required this.minShares,
+    required this.maxShares,
+    required this.socialFundPerMtg,
+    required this.interestRatePct,
+    required this.loanMultiplier,
+    required this.loanDurationMonths,
+    required this.maxRepaymentMonths,
+    required this.requiredGuarantors,
+    required this.cycleMonths,
+    this.cycleMonthsElapsed = 0,
+    required this.quorumPercent,
+    required this.meetingFrequency,
+    required this.meetingStartTime,
+    required this.meetingLocation,
+    required this.fineTypes,
+  });
+
+  /// Sensible starting rules for a brand-new group. These mirror the
+  /// [GroupDefaults] constants / backend column defaults, and are the fallback
+  /// whenever no group data has loaded yet.
+  factory GroupRules.defaults() => const GroupRules(
+        shareValue: 5000,
+        minShares: 1,
+        maxShares: 5,
+        socialFundPerMtg: 1000,
+        interestRatePct: 10,
+        loanMultiplier: 3,
+        loanDurationMonths: 3,
+        maxRepaymentMonths: 4,
+        requiredGuarantors: 2,
+        cycleMonths: 12,
+        quorumPercent: 50,
+        meetingFrequency: 'weekly',
+        meetingStartTime: '10:00',
+        meetingLocation: '',
+        fineTypes: [
+          FineType('Kutohudhuria mkutano', 5000),
+          FineType('Kuchelewa malipo', 2000),
+          FineType('Nyingine', 1000),
+        ],
+      );
+
+  factory GroupRules.fromJson(Map<String, dynamic> j) {
+    final d = GroupRules.defaults();
+    double dbl(String k, double f) => (j[k] as num?)?.toDouble() ?? f;
+    int integer(String k, int f) => (j[k] as num?)?.toInt() ?? f;
+    final ft = j['fineTypes'] as List?;
+    return GroupRules(
+      shareValue: dbl('shareValue', d.shareValue),
+      minShares: integer('minShares', d.minShares),
+      maxShares: integer('maxShares', d.maxShares),
+      socialFundPerMtg: dbl('socialFundPerMtg', d.socialFundPerMtg),
+      interestRatePct: dbl('interestRatePct', d.interestRatePct),
+      loanMultiplier: integer('loanMultiplier', d.loanMultiplier),
+      loanDurationMonths: integer('loanDurationMonths', d.loanDurationMonths),
+      maxRepaymentMonths: integer('maxRepaymentMonths', d.maxRepaymentMonths),
+      requiredGuarantors: integer('requiredGuarantors', d.requiredGuarantors),
+      cycleMonths: integer('cycleMonths', d.cycleMonths),
+      cycleMonthsElapsed: integer('cycleMonthsElapsed', d.cycleMonthsElapsed),
+      quorumPercent: integer('quorumPercent', d.quorumPercent),
+      meetingFrequency: (j['meetingFrequency'] ?? d.meetingFrequency).toString(),
+      meetingStartTime: (j['meetingStartTime'] ?? d.meetingStartTime).toString(),
+      meetingLocation: (j['meetingLocation'] ?? d.meetingLocation).toString(),
+      fineTypes: ft == null
+          ? d.fineTypes
+          : ft
+              .map((e) => FineType.fromJson((e as Map).cast<String, dynamic>()))
+              .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'shareValue': shareValue,
+        'minShares': minShares,
+        'maxShares': maxShares,
+        'socialFundPerMtg': socialFundPerMtg,
+        'interestRatePct': interestRatePct,
+        'loanMultiplier': loanMultiplier,
+        'loanDurationMonths': loanDurationMonths,
+        'maxRepaymentMonths': maxRepaymentMonths,
+        'requiredGuarantors': requiredGuarantors,
+        'cycleMonths': cycleMonths,
+        'cycleMonthsElapsed': cycleMonthsElapsed,
+        'quorumPercent': quorumPercent,
+        'meetingFrequency': meetingFrequency,
+        'meetingStartTime': meetingStartTime,
+        'meetingLocation': meetingLocation,
+        'fineTypes': [for (final f in fineTypes) f.toJson()],
+      };
+
+  GroupRules copyWith({
+    double? shareValue,
+    int? minShares,
+    int? maxShares,
+    double? socialFundPerMtg,
+    double? interestRatePct,
+    int? loanMultiplier,
+    int? loanDurationMonths,
+    int? maxRepaymentMonths,
+    int? requiredGuarantors,
+    int? cycleMonths,
+    int? cycleMonthsElapsed,
+    int? quorumPercent,
+    String? meetingFrequency,
+    String? meetingStartTime,
+    String? meetingLocation,
+    List<FineType>? fineTypes,
+  }) =>
+      GroupRules(
+        shareValue: shareValue ?? this.shareValue,
+        minShares: minShares ?? this.minShares,
+        maxShares: maxShares ?? this.maxShares,
+        socialFundPerMtg: socialFundPerMtg ?? this.socialFundPerMtg,
+        interestRatePct: interestRatePct ?? this.interestRatePct,
+        loanMultiplier: loanMultiplier ?? this.loanMultiplier,
+        loanDurationMonths: loanDurationMonths ?? this.loanDurationMonths,
+        maxRepaymentMonths: maxRepaymentMonths ?? this.maxRepaymentMonths,
+        requiredGuarantors: requiredGuarantors ?? this.requiredGuarantors,
+        cycleMonths: cycleMonths ?? this.cycleMonths,
+        cycleMonthsElapsed: cycleMonthsElapsed ?? this.cycleMonthsElapsed,
+        quorumPercent: quorumPercent ?? this.quorumPercent,
+        meetingFrequency: meetingFrequency ?? this.meetingFrequency,
+        meetingStartTime: meetingStartTime ?? this.meetingStartTime,
+        meetingLocation: meetingLocation ?? this.meetingLocation,
+        fineTypes: fineTypes ?? this.fineTypes,
+      );
 }
 
 /// Returns the member matching [id] from [members], or the first member, or
@@ -167,6 +342,42 @@ class MembershipRequest {
             MembershipRequestStatus.pending),
         requestedOn: DateTime.fromMillisecondsSinceEpoch(
             (j['requestedOn'] as num?)?.toInt() ?? 0),
+      );
+}
+
+/// A member-submitted deposit awaiting an officer's confirmation. Until approved
+/// it counts toward no balance; the officer approves (it becomes a confirmed
+/// saving) or rejects it (discarded). Mirrors the pending loan/membership flow.
+class SavingRequest {
+  final String id;
+  final String memberId;
+  final String memberName;
+  final double amount;
+  final SavingType type;
+  final String method;
+  final DateTime requestedOn;
+
+  const SavingRequest({
+    required this.id,
+    required this.memberId,
+    required this.memberName,
+    required this.amount,
+    required this.type,
+    required this.method,
+    required this.requestedOn,
+  });
+
+  String get initials => initialsOf(memberName);
+
+  factory SavingRequest.fromJson(Map<String, dynamic> j) => SavingRequest(
+        id: j['id'] as String? ?? '',
+        memberId: j['memberId'] as String? ?? '',
+        memberName: j['memberName'] as String? ?? '',
+        amount: (j['amount'] as num?)?.toDouble() ?? 0,
+        type: _enumByName(SavingType.values, j['type'], SavingType.regular),
+        method: j['method'] as String? ?? '',
+        requestedOn: DateTime.fromMillisecondsSinceEpoch(
+            (j['date'] as num?)?.toInt() ?? 0),
       );
 }
 

@@ -92,15 +92,12 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        const SizedBox(height: 160),
-                        Center(
-                          child: Text(
-                            _tab == 0
-                                ? locale.t('no_upcoming')
-                                : locale.t('no_past'),
-                            style:
-                                const TextStyle(color: AppColors.textMuted),
-                          ),
+                        const SizedBox(height: 120),
+                        EmptyState(
+                          icon: Icons.event_outlined,
+                          title: _tab == 0
+                              ? locale.t('no_upcoming')
+                              : locale.t('no_past'),
                         ),
                       ],
                     )

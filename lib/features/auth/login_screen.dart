@@ -15,6 +15,7 @@ import '../shell/main_shell.dart';
 import '../shell/user_shell.dart';
 import '../superadmin/groups_admin_screen.dart';
 import 'group_login.dart';
+import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -124,6 +125,39 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     _openShell(session.role, session.state);
+  }
+
+  /// Starts SMS sign-in: requests a one-time code for the entered phone and, on
+  /// success, opens the code-entry screen. Only offered online (API mode), where
+  /// the backend can text the code.
+  Future<void> _loginWithSms() async {
+    FocusScope.of(context).unfocus();
+    final locale = context.read<LocaleProvider>();
+    final phoneDigits = _phone.text.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length < 9) {
+      _showError(locale.t('phone_required'));
+      return;
+    }
+    setState(() => _loggingIn = true);
+    final result =
+        await context.read<AppState>().requestLoginOtp(phone: _phone.text);
+    if (!mounted) return;
+    setState(() => _loggingIn = false);
+    if (!result.ok) {
+      _showError(locale.t(result.errorKey ?? 'otp_send_failed'));
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider<AppState>.value(
+          value: context.read<AppState>(),
+          child: OtpVerifyScreen(
+            phone: _phone.text,
+            devCode: result.devCode,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Opens the admin or member panel scoped to [state] — the group the member
@@ -443,6 +477,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                     : Text(locale.t('login')),
               ),
+              // SMS sign-in needs the backend to text a code, so it's only
+              // offered in online (API) mode.
+              if (Config.useApi) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loggingIn ? null : _loginWithSms,
+                  icon: const Icon(Icons.sms_outlined, size: 18),
+                  label: Text(locale.t('login_with_sms')),
+                ),
+              ],
               const SizedBox(height: 18),
               Center(
                 child: TextButton(

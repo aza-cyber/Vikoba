@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
-import '../../core/state/settings_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
@@ -27,7 +26,7 @@ class _FinesScreenState extends State<FinesScreen> {
   @override
   void initState() {
     super.initState();
-    final types = context.read<SettingsStore>().fineTypes;
+    final types = context.read<AppState>().rules.fineTypes;
     if (types.isNotEmpty) _amount.text = Fmt.number(types.first.amount);
   }
 
@@ -44,10 +43,9 @@ class _FinesScreenState extends State<FinesScreen> {
     final members = state.members;
     _member = pickMember(members, _member?.id);
 
-    final settings = context.watch<SettingsStore>();
-    final fineTypes = settings.fineTypes.isNotEmpty
-        ? settings.fineTypes
-        : [FineTypeSetting(locale.t('fine_other'), 0)];
+    final fineTypes = state.rules.fineTypes.isNotEmpty
+        ? state.rules.fineTypes
+        : [FineType(locale.t('fine_other'), 0)];
     if (_typeIndex >= fineTypes.length) _typeIndex = 0;
     final methods = [
       locale.t('cash'),
@@ -140,11 +138,31 @@ class _FinesScreenState extends State<FinesScreen> {
   }
 
   Future<void> _onSave(BuildContext context, LocaleProvider locale,
-      List<FineTypeSetting> fineTypes) async {
+      List<FineType> fineTypes) async {
     final member = _member;
     final amount =
         double.tryParse(_amount.text.replaceAll(RegExp(r'[,\s]'), '')) ?? 0;
     if (member == null || amount <= 0) return;
+
+    // Capture context-derived objects before the confirm dialog's async gap.
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final appState = context.read<AppState>();
+
+    final ok = await showConfirmSummary(
+      context,
+      title: locale.t('confirm_details'),
+      rows: [
+        (locale.t('member'), member.name),
+        (locale.t('fine_name'), fineTypes[_typeIndex].name),
+        (locale.t('amount'), Fmt.tzs(amount)),
+        (locale.t('date'), Fmt.date(_date)),
+        (locale.t('paid_now'), _paidNow ? locale.t('yes') : locale.t('no')),
+      ],
+      confirmLabel: locale.t('confirm'),
+      cancelLabel: locale.t('cancel'),
+    );
+    if (!ok || !mounted) return;
 
     // Keep the chosen day but stamp the actual time of entry, so the
     // transaction history shows a real time instead of midnight.
@@ -152,9 +170,7 @@ class _FinesScreenState extends State<FinesScreen> {
     final when = DateTime(
         _date.year, _date.month, _date.day, now.hour, now.minute, now.second);
 
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    final error = await context.read<AppState>().addFine(
+    final error = await appState.addFine(
           memberId: member.id,
           reason: fineTypes[_typeIndex].name,
           amount: amount,
@@ -191,9 +207,10 @@ class _MembersWithPenalties extends StatelessWidget {
     final fines = state.outstandingFines;
     if (fines.isEmpty) {
       return AppCard(
-        child: Center(
-          child: Text(locale.t('no_outstanding'),
-              style: const TextStyle(color: AppColors.textMuted)),
+        child: EmptyState(
+          icon: Icons.check_circle_outline_rounded,
+          title: locale.t('no_outstanding'),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         ),
       );
     }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/l10n/locale_provider.dart';
-import '../../core/state/settings_store.dart';
+import '../../core/state/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common.dart';
 
-/// Edits the loan terms that drive the "Give Loan" form defaults: the monthly
-/// interest rate and the default repayment duration.
+/// Edits this group's loan terms (monthly interest rate + default repayment
+/// duration). Saved to the group's rulebook, so each group can set its own.
 class InterestRatesScreen extends StatefulWidget {
   const InterestRatesScreen({super.key});
 
@@ -21,9 +21,9 @@ class _InterestRatesScreenState extends State<InterestRatesScreen> {
   @override
   void initState() {
     super.initState();
-    final s = context.read<SettingsStore>();
-    _rate = TextEditingController(text: _trim(s.loanInterestRate));
-    _duration = TextEditingController(text: '${s.loanDurationMonths}');
+    final r = context.read<AppState>().rules;
+    _rate = TextEditingController(text: _trim(r.interestRatePct));
+    _duration = TextEditingController(text: '${r.loanDurationMonths}');
   }
 
   String _trim(double v) =>
@@ -37,16 +37,18 @@ class _InterestRatesScreenState extends State<InterestRatesScreen> {
   }
 
   Future<void> _save(LocaleProvider locale) async {
+    final app = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
-    await context.read<SettingsStore>().setLoanTerms(
-          rate: double.tryParse(_rate.text.trim()),
-          duration: int.tryParse(_duration.text.trim()),
-        );
+    final error = await app.updateRules(app.rules.copyWith(
+      interestRatePct: double.tryParse(_rate.text.trim()) ?? app.rules.interestRatePct,
+      loanDurationMonths:
+          int.tryParse(_duration.text.trim()) ?? app.rules.loanDurationMonths,
+    ));
     if (!mounted) return;
     messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.primary,
-        content: Text(locale.t('settings_saved'))));
-    Navigator.of(context).maybePop();
+        backgroundColor: error == null ? AppColors.primary : AppColors.fines,
+        content: Text(error ?? locale.t('settings_saved'))));
+    if (error == null) Navigator.of(context).maybePop();
   }
 
   @override

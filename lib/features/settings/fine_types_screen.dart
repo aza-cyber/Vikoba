@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/l10n/locale_provider.dart';
-import '../../core/state/settings_store.dart';
+import '../../core/models/models.dart';
+import '../../core/state/app_state.dart';
 import '../../core/theme/app_colors.dart';
 
-/// Manages the group's fine types (name + default amount). These drive the
-/// picker on the "Record Fine" screen.
+/// Manages this group's fine types (name + default amount). Saved to the group's
+/// rulebook and drives the picker on the "Record Fine" screen.
 class FineTypesScreen extends StatefulWidget {
   const FineTypesScreen({super.key});
 
@@ -20,7 +21,7 @@ class _FineTypesScreenState extends State<FineTypesScreen> {
   void initState() {
     super.initState();
     _rows = [
-      for (final f in context.read<SettingsStore>().fineTypes)
+      for (final f in context.read<AppState>().rules.fineTypes)
         _Row(name: f.name, amount: _trim(f.amount)),
     ];
     if (_rows.isEmpty) _rows.add(_Row(name: '', amount: ''));
@@ -45,21 +46,22 @@ class _FineTypesScreenState extends State<FineTypesScreen> {
   }
 
   Future<void> _save(LocaleProvider locale) async {
+    final app = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
-    final types = <FineTypeSetting>[
+    final types = <FineType>[
       for (final r in _rows)
         if (r.name.text.trim().isNotEmpty)
-          FineTypeSetting(
+          FineType(
             r.name.text.trim(),
             double.tryParse(r.amount.text.replaceAll(RegExp(r'[,\s]'), '')) ?? 0,
           ),
     ];
-    await context.read<SettingsStore>().setFineTypes(types);
+    final error = await app.updateRules(app.rules.copyWith(fineTypes: types));
     if (!mounted) return;
     messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.primary,
-        content: Text(locale.t('settings_saved'))));
-    Navigator.of(context).maybePop();
+        backgroundColor: error == null ? AppColors.primary : AppColors.fines,
+        content: Text(error ?? locale.t('settings_saved'))));
+    if (error == null) Navigator.of(context).maybePop();
   }
 
   @override

@@ -4,6 +4,75 @@ import '../core/theme/app_colors.dart';
 
 const String appLogoAsset = 'assets/images/vikoba_logo.png';
 
+/// Shows a confirmation dialog that summarises every entered field ([rows] as
+/// label → value) so the user can review the whole entry before it is sent and
+/// saved. Returns true only if the user taps confirm; false on cancel/dismiss.
+///
+/// Callers pass already-localised strings so this stays free of the l10n layer.
+Future<bool> showConfirmSummary(
+  BuildContext context, {
+  required String title,
+  required List<(String, String)> rows,
+  required String confirmLabel,
+  required String cancelLabel,
+  String? note,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (label, value) in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Text(label,
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 13)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: Text(value,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    ),
+                  ],
+                ),
+              ),
+            if (note != null) ...[
+              const SizedBox(height: 10),
+              Text(note,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textMuted)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(cancelLabel),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
 /// Shared Vikoba logo mark used across the app.
 class AppLogo extends StatelessWidget {
   final double? size;
@@ -179,8 +248,12 @@ class SummaryCard extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(16),
       ),
+      // Content is laid out to never overflow the fixed-aspect grid cell, even
+      // at large system text scales: the label is capped to two lines and the
+      // value shrinks to fit rather than pushing past the card's height.
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
@@ -196,6 +269,8 @@ class SummaryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12.5,
                     color: AppColors.textSecondary,
@@ -205,13 +280,18 @@ class SummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: accent,
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
             ),
           ),
         ],
@@ -238,30 +318,37 @@ class SectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         if (actionLabel != null)
           GestureDetector(
             onTap: onAction,
-            child: Row(
-              children: [
-                Text(
-                  actionLabel!,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Row(
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                const Icon(Icons.arrow_forward,
-                    size: 15, color: AppColors.primary),
-              ],
+                  const Icon(Icons.arrow_forward,
+                      size: 15, color: AppColors.primary),
+                ],
+              ),
             ),
           ),
       ],
@@ -468,6 +555,211 @@ class HighlightBanner extends StatelessWidget {
           Text(value,
               style: TextStyle(
                   fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+/// A friendly placeholder shown when a list or section has no data yet, with an
+/// icon, a title, an optional explanatory line, and an optional call to action.
+/// Replaces the ad-hoc "—" / bespoke empties so every empty view looks the same.
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final EdgeInsetsGeometry padding;
+
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: padding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.cardGreenBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 34, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+              ),
+            ],
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 18),
+              OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A single rounded grey block used to sketch the shape of loading content.
+/// Wrap a group of these in a [Shimmer] to animate them.
+class SkeletonBox extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+
+  const SkeletonBox({
+    super.key,
+    this.width,
+    this.height = 14,
+    this.radius = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: _kSkeletonBase,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+const Color _kSkeletonBase = Color(0xFFE9EEEB);
+const Color _kSkeletonHighlight = Color(0xFFF5F9F7);
+
+/// Animates a light sweep across its (skeleton) [child] to signal loading.
+/// Pure Flutter — no extra package. The child should be built from opaque
+/// [SkeletonBox]es so the sweep is painted over them.
+class Shimmer extends StatefulWidget {
+  final Widget child;
+  const Shimmer({super.key, required this.child});
+
+  @override
+  State<Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: const [
+              _kSkeletonBase,
+              _kSkeletonHighlight,
+              _kSkeletonBase,
+            ],
+            stops: [
+              (t - 0.3).clamp(0.0, 1.0),
+              t.clamp(0.0, 1.0),
+              (t + 0.3).clamp(0.0, 1.0),
+            ],
+          ).createShader(bounds),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// An inline warning bar shown when the app can't reach the backend, offering a
+/// Retry that re-fetches the snapshot. Used at the top of data screens so a
+/// failed load never shows as silently-empty (or all-zero) data.
+class ConnectionBanner extends StatelessWidget {
+  final String message;
+  final String retryLabel;
+  final VoidCallback onRetry;
+
+  const ConnectionBanner({
+    super.key,
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: AppColors.cardRedBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.fines.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.fines, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.fines,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: const Size(0, 36),
+            ),
+            child: Text(retryLabel,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );

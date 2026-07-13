@@ -6,7 +6,9 @@ import '../../core/state/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
+import '../shell/app_state_route.dart';
 import '../shell/shell_scope.dart';
+import 'deposit_requests_screen.dart';
 
 class SavingsScreen extends StatefulWidget {
   const SavingsScreen({super.key});
@@ -53,6 +55,21 @@ class _SavingsScreenState extends State<SavingsScreen> {
       appBar: AppBar(
         leading: const ShellLeading(),
         title: Text(locale.t('savings_title')),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              tooltip: locale.t('deposit_requests'),
+              icon: Badge.count(
+                count: state.savingsRequests.length,
+                isLabelVisible: state.savingsRequests.isNotEmpty,
+                child: const Icon(Icons.inbox_outlined),
+              ),
+              onPressed: () => Navigator.of(context).push(
+                  appStateRoute(context, const DepositRequestsScreen())),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -128,7 +145,32 @@ class _SavingsScreenState extends State<SavingsScreen> {
     if (member == null || amount <= 0) return;
 
     const types = [SavingType.regular, SavingType.special, SavingType.social];
+    final typeLabels = [
+      locale.t('savings_regular'),
+      locale.t('savings_special'),
+      locale.t('savings_social'),
+    ];
     final methods = [locale.t('cash'), locale.t('mobile_money'), locale.t('bank')];
+
+    // Capture context-derived objects before the confirm dialog's async gap.
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final appState = context.read<AppState>();
+
+    final ok = await showConfirmSummary(
+      context,
+      title: locale.t('confirm_details'),
+      rows: [
+        (locale.t('member'), member.name),
+        (locale.t('date'), Fmt.date(_date)),
+        (locale.t('savings_type'), typeLabels[_typeIndex]),
+        (locale.t('amount'), Fmt.tzs(amount)),
+        (locale.t('payment_method'), methods[_methodIndex]),
+      ],
+      confirmLabel: locale.t('confirm'),
+      cancelLabel: locale.t('cancel'),
+    );
+    if (!ok || !mounted) return;
 
     // Record the chosen calendar day but stamp the actual time of entry, so the
     // transaction history shows a real time instead of midnight for back-dated
@@ -137,9 +179,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
     final when = DateTime(
         _date.year, _date.month, _date.day, now.hour, now.minute, now.second);
 
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    final error = await context.read<AppState>().addSaving(
+    final error = await appState.addSaving(
           memberId: member.id,
           amount: amount,
           date: when,

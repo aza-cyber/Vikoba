@@ -154,6 +154,54 @@ class $GroupSettingsTable extends GroupSettings
           type: DriftSqlType.double,
           requiredDuringInsert: false,
           defaultValue: const Constant(0));
+  static const VerificationMeta _loanDurationMonthsMeta =
+      const VerificationMeta('loanDurationMonths');
+  @override
+  late final GeneratedColumn<int> loanDurationMonths = GeneratedColumn<int>(
+      'loan_duration_months', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(3));
+  static const VerificationMeta _quorumPercentMeta =
+      const VerificationMeta('quorumPercent');
+  @override
+  late final GeneratedColumn<int> quorumPercent = GeneratedColumn<int>(
+      'quorum_percent', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(50));
+  static const VerificationMeta _meetingFrequencyMeta =
+      const VerificationMeta('meetingFrequency');
+  @override
+  late final GeneratedColumn<String> meetingFrequency = GeneratedColumn<String>(
+      'meeting_frequency', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('weekly'));
+  static const VerificationMeta _meetingStartTimeMeta =
+      const VerificationMeta('meetingStartTime');
+  @override
+  late final GeneratedColumn<String> meetingStartTime = GeneratedColumn<String>(
+      'meeting_start_time', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('10:00'));
+  static const VerificationMeta _meetingLocationMeta =
+      const VerificationMeta('meetingLocation');
+  @override
+  late final GeneratedColumn<String> meetingLocation = GeneratedColumn<String>(
+      'meeting_location', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _fineTypesMeta =
+      const VerificationMeta('fineTypes');
+  @override
+  late final GeneratedColumn<String> fineTypes = GeneratedColumn<String>(
+      'fine_types', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(kDefaultFineTypesJson));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -174,7 +222,13 @@ class $GroupSettingsTable extends GroupSettings
         meetingExpense,
         otherExpense,
         openingCash,
-        openingSocialFund
+        openingSocialFund,
+        loanDurationMonths,
+        quorumPercent,
+        meetingFrequency,
+        meetingStartTime,
+        meetingLocation,
+        fineTypes
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -293,6 +347,40 @@ class $GroupSettingsTable extends GroupSettings
           openingSocialFund.isAcceptableOrUnknown(
               data['opening_social_fund']!, _openingSocialFundMeta));
     }
+    if (data.containsKey('loan_duration_months')) {
+      context.handle(
+          _loanDurationMonthsMeta,
+          loanDurationMonths.isAcceptableOrUnknown(
+              data['loan_duration_months']!, _loanDurationMonthsMeta));
+    }
+    if (data.containsKey('quorum_percent')) {
+      context.handle(
+          _quorumPercentMeta,
+          quorumPercent.isAcceptableOrUnknown(
+              data['quorum_percent']!, _quorumPercentMeta));
+    }
+    if (data.containsKey('meeting_frequency')) {
+      context.handle(
+          _meetingFrequencyMeta,
+          meetingFrequency.isAcceptableOrUnknown(
+              data['meeting_frequency']!, _meetingFrequencyMeta));
+    }
+    if (data.containsKey('meeting_start_time')) {
+      context.handle(
+          _meetingStartTimeMeta,
+          meetingStartTime.isAcceptableOrUnknown(
+              data['meeting_start_time']!, _meetingStartTimeMeta));
+    }
+    if (data.containsKey('meeting_location')) {
+      context.handle(
+          _meetingLocationMeta,
+          meetingLocation.isAcceptableOrUnknown(
+              data['meeting_location']!, _meetingLocationMeta));
+    }
+    if (data.containsKey('fine_types')) {
+      context.handle(_fineTypesMeta,
+          fineTypes.isAcceptableOrUnknown(data['fine_types']!, _fineTypesMeta));
+    }
     return context;
   }
 
@@ -340,6 +428,18 @@ class $GroupSettingsTable extends GroupSettings
           .read(DriftSqlType.double, data['${effectivePrefix}opening_cash'])!,
       openingSocialFund: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}opening_social_fund'])!,
+      loanDurationMonths: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}loan_duration_months'])!,
+      quorumPercent: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}quorum_percent'])!,
+      meetingFrequency: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}meeting_frequency'])!,
+      meetingStartTime: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}meeting_start_time'])!,
+      meetingLocation: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}meeting_location'])!,
+      fineTypes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fine_types'])!,
     );
   }
 
@@ -369,6 +469,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
   final double otherExpense;
   final double openingCash;
   final double openingSocialFund;
+  final int loanDurationMonths;
+  final int quorumPercent;
+  final String meetingFrequency;
+  final String meetingStartTime;
+  final String meetingLocation;
+  final String fineTypes;
   const GroupSetting(
       {required this.id,
       required this.name,
@@ -388,7 +494,13 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
       required this.meetingExpense,
       required this.otherExpense,
       required this.openingCash,
-      required this.openingSocialFund});
+      required this.openingSocialFund,
+      required this.loanDurationMonths,
+      required this.quorumPercent,
+      required this.meetingFrequency,
+      required this.meetingStartTime,
+      required this.meetingLocation,
+      required this.fineTypes});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -411,6 +523,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
     map['other_expense'] = Variable<double>(otherExpense);
     map['opening_cash'] = Variable<double>(openingCash);
     map['opening_social_fund'] = Variable<double>(openingSocialFund);
+    map['loan_duration_months'] = Variable<int>(loanDurationMonths);
+    map['quorum_percent'] = Variable<int>(quorumPercent);
+    map['meeting_frequency'] = Variable<String>(meetingFrequency);
+    map['meeting_start_time'] = Variable<String>(meetingStartTime);
+    map['meeting_location'] = Variable<String>(meetingLocation);
+    map['fine_types'] = Variable<String>(fineTypes);
     return map;
   }
 
@@ -435,6 +553,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
       otherExpense: Value(otherExpense),
       openingCash: Value(openingCash),
       openingSocialFund: Value(openingSocialFund),
+      loanDurationMonths: Value(loanDurationMonths),
+      quorumPercent: Value(quorumPercent),
+      meetingFrequency: Value(meetingFrequency),
+      meetingStartTime: Value(meetingStartTime),
+      meetingLocation: Value(meetingLocation),
+      fineTypes: Value(fineTypes),
     );
   }
 
@@ -461,6 +585,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
       otherExpense: serializer.fromJson<double>(json['otherExpense']),
       openingCash: serializer.fromJson<double>(json['openingCash']),
       openingSocialFund: serializer.fromJson<double>(json['openingSocialFund']),
+      loanDurationMonths: serializer.fromJson<int>(json['loanDurationMonths']),
+      quorumPercent: serializer.fromJson<int>(json['quorumPercent']),
+      meetingFrequency: serializer.fromJson<String>(json['meetingFrequency']),
+      meetingStartTime: serializer.fromJson<String>(json['meetingStartTime']),
+      meetingLocation: serializer.fromJson<String>(json['meetingLocation']),
+      fineTypes: serializer.fromJson<String>(json['fineTypes']),
     );
   }
   @override
@@ -486,6 +616,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
       'otherExpense': serializer.toJson<double>(otherExpense),
       'openingCash': serializer.toJson<double>(openingCash),
       'openingSocialFund': serializer.toJson<double>(openingSocialFund),
+      'loanDurationMonths': serializer.toJson<int>(loanDurationMonths),
+      'quorumPercent': serializer.toJson<int>(quorumPercent),
+      'meetingFrequency': serializer.toJson<String>(meetingFrequency),
+      'meetingStartTime': serializer.toJson<String>(meetingStartTime),
+      'meetingLocation': serializer.toJson<String>(meetingLocation),
+      'fineTypes': serializer.toJson<String>(fineTypes),
     };
   }
 
@@ -508,7 +644,13 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
           double? meetingExpense,
           double? otherExpense,
           double? openingCash,
-          double? openingSocialFund}) =>
+          double? openingSocialFund,
+          int? loanDurationMonths,
+          int? quorumPercent,
+          String? meetingFrequency,
+          String? meetingStartTime,
+          String? meetingLocation,
+          String? fineTypes}) =>
       GroupSetting(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -529,6 +671,12 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
         otherExpense: otherExpense ?? this.otherExpense,
         openingCash: openingCash ?? this.openingCash,
         openingSocialFund: openingSocialFund ?? this.openingSocialFund,
+        loanDurationMonths: loanDurationMonths ?? this.loanDurationMonths,
+        quorumPercent: quorumPercent ?? this.quorumPercent,
+        meetingFrequency: meetingFrequency ?? this.meetingFrequency,
+        meetingStartTime: meetingStartTime ?? this.meetingStartTime,
+        meetingLocation: meetingLocation ?? this.meetingLocation,
+        fineTypes: fineTypes ?? this.fineTypes,
       );
   GroupSetting copyWithCompanion(GroupSettingsCompanion data) {
     return GroupSetting(
@@ -576,6 +724,22 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
       openingSocialFund: data.openingSocialFund.present
           ? data.openingSocialFund.value
           : this.openingSocialFund,
+      loanDurationMonths: data.loanDurationMonths.present
+          ? data.loanDurationMonths.value
+          : this.loanDurationMonths,
+      quorumPercent: data.quorumPercent.present
+          ? data.quorumPercent.value
+          : this.quorumPercent,
+      meetingFrequency: data.meetingFrequency.present
+          ? data.meetingFrequency.value
+          : this.meetingFrequency,
+      meetingStartTime: data.meetingStartTime.present
+          ? data.meetingStartTime.value
+          : this.meetingStartTime,
+      meetingLocation: data.meetingLocation.present
+          ? data.meetingLocation.value
+          : this.meetingLocation,
+      fineTypes: data.fineTypes.present ? data.fineTypes.value : this.fineTypes,
     );
   }
 
@@ -600,32 +764,45 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
           ..write('meetingExpense: $meetingExpense, ')
           ..write('otherExpense: $otherExpense, ')
           ..write('openingCash: $openingCash, ')
-          ..write('openingSocialFund: $openingSocialFund')
+          ..write('openingSocialFund: $openingSocialFund, ')
+          ..write('loanDurationMonths: $loanDurationMonths, ')
+          ..write('quorumPercent: $quorumPercent, ')
+          ..write('meetingFrequency: $meetingFrequency, ')
+          ..write('meetingStartTime: $meetingStartTime, ')
+          ..write('meetingLocation: $meetingLocation, ')
+          ..write('fineTypes: $fineTypes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      name,
-      term,
-      shareValue,
-      socialFundPerMtg,
-      interestRatePct,
-      loanMultiplier,
-      maxRepaymentMonths,
-      requiredGuarantors,
-      minShares,
-      maxShares,
-      cycleMonths,
-      cycleMonthsElapsed,
-      meetingsHeld,
-      interestEarned,
-      meetingExpense,
-      otherExpense,
-      openingCash,
-      openingSocialFund);
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        term,
+        shareValue,
+        socialFundPerMtg,
+        interestRatePct,
+        loanMultiplier,
+        maxRepaymentMonths,
+        requiredGuarantors,
+        minShares,
+        maxShares,
+        cycleMonths,
+        cycleMonthsElapsed,
+        meetingsHeld,
+        interestEarned,
+        meetingExpense,
+        otherExpense,
+        openingCash,
+        openingSocialFund,
+        loanDurationMonths,
+        quorumPercent,
+        meetingFrequency,
+        meetingStartTime,
+        meetingLocation,
+        fineTypes
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -648,7 +825,13 @@ class GroupSetting extends DataClass implements Insertable<GroupSetting> {
           other.meetingExpense == this.meetingExpense &&
           other.otherExpense == this.otherExpense &&
           other.openingCash == this.openingCash &&
-          other.openingSocialFund == this.openingSocialFund);
+          other.openingSocialFund == this.openingSocialFund &&
+          other.loanDurationMonths == this.loanDurationMonths &&
+          other.quorumPercent == this.quorumPercent &&
+          other.meetingFrequency == this.meetingFrequency &&
+          other.meetingStartTime == this.meetingStartTime &&
+          other.meetingLocation == this.meetingLocation &&
+          other.fineTypes == this.fineTypes);
 }
 
 class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
@@ -671,6 +854,12 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
   final Value<double> otherExpense;
   final Value<double> openingCash;
   final Value<double> openingSocialFund;
+  final Value<int> loanDurationMonths;
+  final Value<int> quorumPercent;
+  final Value<String> meetingFrequency;
+  final Value<String> meetingStartTime;
+  final Value<String> meetingLocation;
+  final Value<String> fineTypes;
   const GroupSettingsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -691,6 +880,12 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
     this.otherExpense = const Value.absent(),
     this.openingCash = const Value.absent(),
     this.openingSocialFund = const Value.absent(),
+    this.loanDurationMonths = const Value.absent(),
+    this.quorumPercent = const Value.absent(),
+    this.meetingFrequency = const Value.absent(),
+    this.meetingStartTime = const Value.absent(),
+    this.meetingLocation = const Value.absent(),
+    this.fineTypes = const Value.absent(),
   });
   GroupSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -712,6 +907,12 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
     this.otherExpense = const Value.absent(),
     this.openingCash = const Value.absent(),
     this.openingSocialFund = const Value.absent(),
+    this.loanDurationMonths = const Value.absent(),
+    this.quorumPercent = const Value.absent(),
+    this.meetingFrequency = const Value.absent(),
+    this.meetingStartTime = const Value.absent(),
+    this.meetingLocation = const Value.absent(),
+    this.fineTypes = const Value.absent(),
   })  : name = Value(name),
         term = Value(term);
   static Insertable<GroupSetting> custom({
@@ -734,6 +935,12 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
     Expression<double>? otherExpense,
     Expression<double>? openingCash,
     Expression<double>? openingSocialFund,
+    Expression<int>? loanDurationMonths,
+    Expression<int>? quorumPercent,
+    Expression<String>? meetingFrequency,
+    Expression<String>? meetingStartTime,
+    Expression<String>? meetingLocation,
+    Expression<String>? fineTypes,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -757,6 +964,13 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
       if (otherExpense != null) 'other_expense': otherExpense,
       if (openingCash != null) 'opening_cash': openingCash,
       if (openingSocialFund != null) 'opening_social_fund': openingSocialFund,
+      if (loanDurationMonths != null)
+        'loan_duration_months': loanDurationMonths,
+      if (quorumPercent != null) 'quorum_percent': quorumPercent,
+      if (meetingFrequency != null) 'meeting_frequency': meetingFrequency,
+      if (meetingStartTime != null) 'meeting_start_time': meetingStartTime,
+      if (meetingLocation != null) 'meeting_location': meetingLocation,
+      if (fineTypes != null) 'fine_types': fineTypes,
     });
   }
 
@@ -779,7 +993,13 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
       Value<double>? meetingExpense,
       Value<double>? otherExpense,
       Value<double>? openingCash,
-      Value<double>? openingSocialFund}) {
+      Value<double>? openingSocialFund,
+      Value<int>? loanDurationMonths,
+      Value<int>? quorumPercent,
+      Value<String>? meetingFrequency,
+      Value<String>? meetingStartTime,
+      Value<String>? meetingLocation,
+      Value<String>? fineTypes}) {
     return GroupSettingsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -800,6 +1020,12 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
       otherExpense: otherExpense ?? this.otherExpense,
       openingCash: openingCash ?? this.openingCash,
       openingSocialFund: openingSocialFund ?? this.openingSocialFund,
+      loanDurationMonths: loanDurationMonths ?? this.loanDurationMonths,
+      quorumPercent: quorumPercent ?? this.quorumPercent,
+      meetingFrequency: meetingFrequency ?? this.meetingFrequency,
+      meetingStartTime: meetingStartTime ?? this.meetingStartTime,
+      meetingLocation: meetingLocation ?? this.meetingLocation,
+      fineTypes: fineTypes ?? this.fineTypes,
     );
   }
 
@@ -863,6 +1089,24 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
     if (openingSocialFund.present) {
       map['opening_social_fund'] = Variable<double>(openingSocialFund.value);
     }
+    if (loanDurationMonths.present) {
+      map['loan_duration_months'] = Variable<int>(loanDurationMonths.value);
+    }
+    if (quorumPercent.present) {
+      map['quorum_percent'] = Variable<int>(quorumPercent.value);
+    }
+    if (meetingFrequency.present) {
+      map['meeting_frequency'] = Variable<String>(meetingFrequency.value);
+    }
+    if (meetingStartTime.present) {
+      map['meeting_start_time'] = Variable<String>(meetingStartTime.value);
+    }
+    if (meetingLocation.present) {
+      map['meeting_location'] = Variable<String>(meetingLocation.value);
+    }
+    if (fineTypes.present) {
+      map['fine_types'] = Variable<String>(fineTypes.value);
+    }
     return map;
   }
 
@@ -887,7 +1131,13 @@ class GroupSettingsCompanion extends UpdateCompanion<GroupSetting> {
           ..write('meetingExpense: $meetingExpense, ')
           ..write('otherExpense: $otherExpense, ')
           ..write('openingCash: $openingCash, ')
-          ..write('openingSocialFund: $openingSocialFund')
+          ..write('openingSocialFund: $openingSocialFund, ')
+          ..write('loanDurationMonths: $loanDurationMonths, ')
+          ..write('quorumPercent: $quorumPercent, ')
+          ..write('meetingFrequency: $meetingFrequency, ')
+          ..write('meetingStartTime: $meetingStartTime, ')
+          ..write('meetingLocation: $meetingLocation, ')
+          ..write('fineTypes: $fineTypes')
           ..write(')'))
         .toString();
   }
@@ -1231,9 +1481,16 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
   late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
       'date', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('confirmed'));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, memberId, amount, type, method, date];
+      [id, memberId, amount, type, method, date, status];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1279,6 +1536,10 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
     return context;
   }
 
@@ -1300,6 +1561,8 @@ class $SavingsTable extends Savings with TableInfo<$SavingsTable, Saving> {
           .read(DriftSqlType.string, data['${effectivePrefix}method'])!,
       date: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
     );
   }
 
@@ -1316,13 +1579,15 @@ class Saving extends DataClass implements Insertable<Saving> {
   final String type;
   final String method;
   final DateTime date;
+  final String status;
   const Saving(
       {required this.id,
       required this.memberId,
       required this.amount,
       required this.type,
       required this.method,
-      required this.date});
+      required this.date,
+      required this.status});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1332,6 +1597,7 @@ class Saving extends DataClass implements Insertable<Saving> {
     map['type'] = Variable<String>(type);
     map['method'] = Variable<String>(method);
     map['date'] = Variable<DateTime>(date);
+    map['status'] = Variable<String>(status);
     return map;
   }
 
@@ -1343,6 +1609,7 @@ class Saving extends DataClass implements Insertable<Saving> {
       type: Value(type),
       method: Value(method),
       date: Value(date),
+      status: Value(status),
     );
   }
 
@@ -1356,6 +1623,7 @@ class Saving extends DataClass implements Insertable<Saving> {
       type: serializer.fromJson<String>(json['type']),
       method: serializer.fromJson<String>(json['method']),
       date: serializer.fromJson<DateTime>(json['date']),
+      status: serializer.fromJson<String>(json['status']),
     );
   }
   @override
@@ -1368,6 +1636,7 @@ class Saving extends DataClass implements Insertable<Saving> {
       'type': serializer.toJson<String>(type),
       'method': serializer.toJson<String>(method),
       'date': serializer.toJson<DateTime>(date),
+      'status': serializer.toJson<String>(status),
     };
   }
 
@@ -1377,7 +1646,8 @@ class Saving extends DataClass implements Insertable<Saving> {
           double? amount,
           String? type,
           String? method,
-          DateTime? date}) =>
+          DateTime? date,
+          String? status}) =>
       Saving(
         id: id ?? this.id,
         memberId: memberId ?? this.memberId,
@@ -1385,6 +1655,7 @@ class Saving extends DataClass implements Insertable<Saving> {
         type: type ?? this.type,
         method: method ?? this.method,
         date: date ?? this.date,
+        status: status ?? this.status,
       );
   Saving copyWithCompanion(SavingsCompanion data) {
     return Saving(
@@ -1394,6 +1665,7 @@ class Saving extends DataClass implements Insertable<Saving> {
       type: data.type.present ? data.type.value : this.type,
       method: data.method.present ? data.method.value : this.method,
       date: data.date.present ? data.date.value : this.date,
+      status: data.status.present ? data.status.value : this.status,
     );
   }
 
@@ -1405,13 +1677,15 @@ class Saving extends DataClass implements Insertable<Saving> {
           ..write('amount: $amount, ')
           ..write('type: $type, ')
           ..write('method: $method, ')
-          ..write('date: $date')
+          ..write('date: $date, ')
+          ..write('status: $status')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, memberId, amount, type, method, date);
+  int get hashCode =>
+      Object.hash(id, memberId, amount, type, method, date, status);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1421,7 +1695,8 @@ class Saving extends DataClass implements Insertable<Saving> {
           other.amount == this.amount &&
           other.type == this.type &&
           other.method == this.method &&
-          other.date == this.date);
+          other.date == this.date &&
+          other.status == this.status);
 }
 
 class SavingsCompanion extends UpdateCompanion<Saving> {
@@ -1431,6 +1706,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
   final Value<String> type;
   final Value<String> method;
   final Value<DateTime> date;
+  final Value<String> status;
   final Value<int> rowid;
   const SavingsCompanion({
     this.id = const Value.absent(),
@@ -1439,6 +1715,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     this.type = const Value.absent(),
     this.method = const Value.absent(),
     this.date = const Value.absent(),
+    this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SavingsCompanion.insert({
@@ -1448,6 +1725,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     required String type,
     required String method,
     required DateTime date,
+    this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         memberId = Value(memberId),
@@ -1462,6 +1740,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     Expression<String>? type,
     Expression<String>? method,
     Expression<DateTime>? date,
+    Expression<String>? status,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1471,6 +1750,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       if (type != null) 'type': type,
       if (method != null) 'method': method,
       if (date != null) 'date': date,
+      if (status != null) 'status': status,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1482,6 +1762,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       Value<String>? type,
       Value<String>? method,
       Value<DateTime>? date,
+      Value<String>? status,
       Value<int>? rowid}) {
     return SavingsCompanion(
       id: id ?? this.id,
@@ -1490,6 +1771,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
       type: type ?? this.type,
       method: method ?? this.method,
       date: date ?? this.date,
+      status: status ?? this.status,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1515,6 +1797,9 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1530,6 +1815,7 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
           ..write('type: $type, ')
           ..write('method: $method, ')
           ..write('date: $date, ')
+          ..write('status: $status, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3665,6 +3951,12 @@ typedef $$GroupSettingsTableCreateCompanionBuilder = GroupSettingsCompanion
   Value<double> otherExpense,
   Value<double> openingCash,
   Value<double> openingSocialFund,
+  Value<int> loanDurationMonths,
+  Value<int> quorumPercent,
+  Value<String> meetingFrequency,
+  Value<String> meetingStartTime,
+  Value<String> meetingLocation,
+  Value<String> fineTypes,
 });
 typedef $$GroupSettingsTableUpdateCompanionBuilder = GroupSettingsCompanion
     Function({
@@ -3687,6 +3979,12 @@ typedef $$GroupSettingsTableUpdateCompanionBuilder = GroupSettingsCompanion
   Value<double> otherExpense,
   Value<double> openingCash,
   Value<double> openingSocialFund,
+  Value<int> loanDurationMonths,
+  Value<int> quorumPercent,
+  Value<String> meetingFrequency,
+  Value<String> meetingStartTime,
+  Value<String> meetingLocation,
+  Value<String> fineTypes,
 });
 
 class $$GroupSettingsTableFilterComposer
@@ -3763,6 +4061,28 @@ class $$GroupSettingsTableFilterComposer
   ColumnFilters<double> get openingSocialFund => $composableBuilder(
       column: $table.openingSocialFund,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get loanDurationMonths => $composableBuilder(
+      column: $table.loanDurationMonths,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get quorumPercent => $composableBuilder(
+      column: $table.quorumPercent, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get meetingFrequency => $composableBuilder(
+      column: $table.meetingFrequency,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get meetingStartTime => $composableBuilder(
+      column: $table.meetingStartTime,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get meetingLocation => $composableBuilder(
+      column: $table.meetingLocation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fineTypes => $composableBuilder(
+      column: $table.fineTypes, builder: (column) => ColumnFilters(column));
 }
 
 class $$GroupSettingsTableOrderingComposer
@@ -3841,6 +4161,29 @@ class $$GroupSettingsTableOrderingComposer
   ColumnOrderings<double> get openingSocialFund => $composableBuilder(
       column: $table.openingSocialFund,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get loanDurationMonths => $composableBuilder(
+      column: $table.loanDurationMonths,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get quorumPercent => $composableBuilder(
+      column: $table.quorumPercent,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get meetingFrequency => $composableBuilder(
+      column: $table.meetingFrequency,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get meetingStartTime => $composableBuilder(
+      column: $table.meetingStartTime,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get meetingLocation => $composableBuilder(
+      column: $table.meetingLocation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fineTypes => $composableBuilder(
+      column: $table.fineTypes, builder: (column) => ColumnOrderings(column));
 }
 
 class $$GroupSettingsTableAnnotationComposer
@@ -3908,6 +4251,24 @@ class $$GroupSettingsTableAnnotationComposer
 
   GeneratedColumn<double> get openingSocialFund => $composableBuilder(
       column: $table.openingSocialFund, builder: (column) => column);
+
+  GeneratedColumn<int> get loanDurationMonths => $composableBuilder(
+      column: $table.loanDurationMonths, builder: (column) => column);
+
+  GeneratedColumn<int> get quorumPercent => $composableBuilder(
+      column: $table.quorumPercent, builder: (column) => column);
+
+  GeneratedColumn<String> get meetingFrequency => $composableBuilder(
+      column: $table.meetingFrequency, builder: (column) => column);
+
+  GeneratedColumn<String> get meetingStartTime => $composableBuilder(
+      column: $table.meetingStartTime, builder: (column) => column);
+
+  GeneratedColumn<String> get meetingLocation => $composableBuilder(
+      column: $table.meetingLocation, builder: (column) => column);
+
+  GeneratedColumn<String> get fineTypes =>
+      $composableBuilder(column: $table.fineTypes, builder: (column) => column);
 }
 
 class $$GroupSettingsTableTableManager extends RootTableManager<
@@ -3955,6 +4316,12 @@ class $$GroupSettingsTableTableManager extends RootTableManager<
             Value<double> otherExpense = const Value.absent(),
             Value<double> openingCash = const Value.absent(),
             Value<double> openingSocialFund = const Value.absent(),
+            Value<int> loanDurationMonths = const Value.absent(),
+            Value<int> quorumPercent = const Value.absent(),
+            Value<String> meetingFrequency = const Value.absent(),
+            Value<String> meetingStartTime = const Value.absent(),
+            Value<String> meetingLocation = const Value.absent(),
+            Value<String> fineTypes = const Value.absent(),
           }) =>
               GroupSettingsCompanion(
             id: id,
@@ -3976,6 +4343,12 @@ class $$GroupSettingsTableTableManager extends RootTableManager<
             otherExpense: otherExpense,
             openingCash: openingCash,
             openingSocialFund: openingSocialFund,
+            loanDurationMonths: loanDurationMonths,
+            quorumPercent: quorumPercent,
+            meetingFrequency: meetingFrequency,
+            meetingStartTime: meetingStartTime,
+            meetingLocation: meetingLocation,
+            fineTypes: fineTypes,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -3997,6 +4370,12 @@ class $$GroupSettingsTableTableManager extends RootTableManager<
             Value<double> otherExpense = const Value.absent(),
             Value<double> openingCash = const Value.absent(),
             Value<double> openingSocialFund = const Value.absent(),
+            Value<int> loanDurationMonths = const Value.absent(),
+            Value<int> quorumPercent = const Value.absent(),
+            Value<String> meetingFrequency = const Value.absent(),
+            Value<String> meetingStartTime = const Value.absent(),
+            Value<String> meetingLocation = const Value.absent(),
+            Value<String> fineTypes = const Value.absent(),
           }) =>
               GroupSettingsCompanion.insert(
             id: id,
@@ -4018,6 +4397,12 @@ class $$GroupSettingsTableTableManager extends RootTableManager<
             otherExpense: otherExpense,
             openingCash: openingCash,
             openingSocialFund: openingSocialFund,
+            loanDurationMonths: loanDurationMonths,
+            quorumPercent: quorumPercent,
+            meetingFrequency: meetingFrequency,
+            meetingStartTime: meetingStartTime,
+            meetingLocation: meetingLocation,
+            fineTypes: fineTypes,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4213,6 +4598,7 @@ typedef $$SavingsTableCreateCompanionBuilder = SavingsCompanion Function({
   required String type,
   required String method,
   required DateTime date,
+  Value<String> status,
   Value<int> rowid,
 });
 typedef $$SavingsTableUpdateCompanionBuilder = SavingsCompanion Function({
@@ -4222,6 +4608,7 @@ typedef $$SavingsTableUpdateCompanionBuilder = SavingsCompanion Function({
   Value<String> type,
   Value<String> method,
   Value<DateTime> date,
+  Value<String> status,
   Value<int> rowid,
 });
 
@@ -4251,6 +4638,9 @@ class $$SavingsTableFilterComposer
 
   ColumnFilters<DateTime> get date => $composableBuilder(
       column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
 }
 
 class $$SavingsTableOrderingComposer
@@ -4279,6 +4669,9 @@ class $$SavingsTableOrderingComposer
 
   ColumnOrderings<DateTime> get date => $composableBuilder(
       column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SavingsTableAnnotationComposer
@@ -4307,6 +4700,9 @@ class $$SavingsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 }
 
 class $$SavingsTableTableManager extends RootTableManager<
@@ -4338,6 +4734,7 @@ class $$SavingsTableTableManager extends RootTableManager<
             Value<String> type = const Value.absent(),
             Value<String> method = const Value.absent(),
             Value<DateTime> date = const Value.absent(),
+            Value<String> status = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsCompanion(
@@ -4347,6 +4744,7 @@ class $$SavingsTableTableManager extends RootTableManager<
             type: type,
             method: method,
             date: date,
+            status: status,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4356,6 +4754,7 @@ class $$SavingsTableTableManager extends RootTableManager<
             required String type,
             required String method,
             required DateTime date,
+            Value<String> status = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SavingsCompanion.insert(
@@ -4365,6 +4764,7 @@ class $$SavingsTableTableManager extends RootTableManager<
             type: type,
             method: method,
             date: date,
+            status: status,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

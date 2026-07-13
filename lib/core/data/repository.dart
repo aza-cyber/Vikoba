@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
@@ -118,6 +119,31 @@ class DriftRepository implements Repository {
     );
   }
 
+  /// SMS sign-in requires a backend to send the text, which the offline store
+  /// has no way to do — so both OTP methods report unavailable. The login screen
+  /// only offers the SMS option in online (API) mode, so these aren't reached in
+  /// normal use; they exist to satisfy the [Repository] contract.
+  @override
+  Future<OtpRequestResult> requestOtp({required String phone}) async =>
+      const OtpRequestResult(ok: false, errorKey: 'otp_unavailable');
+
+  @override
+  Future<AuthResult?> verifyOtp({
+    required String phone,
+    required String code,
+  }) async =>
+      null;
+
+  /// No backend to push from in offline mode — device registration is a no-op.
+  @override
+  Future<void> registerDevice({
+    required String token,
+    required String platform,
+  }) async {}
+
+  @override
+  Future<void> unregisterDevice(String token) async {}
+
   /// Last 9 digits of a phone number — see the API's `_normPhone`.
   static String _normPhone(String p) {
     final digits = p.replaceAll(RegExp(r'\D'), '');
@@ -129,7 +155,13 @@ class DriftRepository implements Repository {
   Future<Snapshot> loadSnapshot() async {
     final settings = await db.select(db.groupSettings).getSingle();
     final memberRows = await db.select(db.members).get();
-    final savingRows = await db.select(db.savings).get();
+    final allSavingRows = await db.select(db.savings).get();
+    // Only CONFIRMED savings count toward balances/history; member-submitted
+    // pending deposits surface separately as savingsRequests until approved.
+    final savingRows =
+        allSavingRows.where((s) => s.status != 'pending').toList();
+    final pendingSavingRows =
+        allSavingRows.where((s) => s.status == 'pending').toList();
     final loanRows = await db.select(db.loans).get();
     final repayRows = await db.select(db.repayments).get();
     final fineRows = await db.select(db.fines).get();
@@ -311,11 +343,25 @@ class DriftRepository implements Repository {
     }
     acts.sort((a, b) => b.$1.compareTo(a.$1));
 
+    final savingsRequests = pendingSavingRows
+        .map((s) => mdl.SavingRequest(
+              id: s.id,
+              memberId: s.memberId,
+              memberName: nameById[s.memberId] ?? s.memberId,
+              amount: s.amount,
+              type: _savingType(s.type),
+              method: s.method,
+              requestedOn: s.date,
+            ))
+        .toList();
+
     return Snapshot(
       groupName: settings.name,
       term: settings.term,
+      rules: _rulesFrom(settings),
       members: members,
       membershipRequests: const [],
+      savingsRequests: savingsRequests,
       loans: loans,
       savings: savings,
       repayments: repayments,
@@ -334,6 +380,62 @@ class DriftRepository implements Repository {
       interestEarned: settings.interestEarned,
       shareValue: settings.shareValue,
       meetingsHeld: settings.meetingsHeld,
+    );
+  }
+
+  /// Builds the group's [mdl.GroupRules] from its settings row, decoding the
+  /// stored fine-type JSON (falling back to defaults if it's blank/corrupt).
+  mdl.GroupRules _rulesFrom(GroupSetting s) {
+    List<mdl.FineType> fineTypes;
+    try {
+      final decoded = jsonDecode(s.fineTypes) as List;
+      fineTypes = decoded
+          .map((e) => mdl.FineType.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      fineTypes = mdl.GroupRules.defaults().fineTypes;
+    }
+    return mdl.GroupRules(
+      shareValue: s.shareValue,
+      minShares: s.minShares,
+      maxShares: s.maxShares,
+      socialFundPerMtg: s.socialFundPerMtg,
+      interestRatePct: s.interestRatePct,
+      loanMultiplier: s.loanMultiplier,
+      loanDurationMonths: s.loanDurationMonths,
+      maxRepaymentMonths: s.maxRepaymentMonths,
+      requiredGuarantors: s.requiredGuarantors,
+      cycleMonths: s.cycleMonths,
+      cycleMonthsElapsed: s.cycleMonthsElapsed,
+      quorumPercent: s.quorumPercent,
+      meetingFrequency: s.meetingFrequency,
+      meetingStartTime: s.meetingStartTime,
+      meetingLocation: s.meetingLocation,
+      fineTypes: fineTypes,
+    );
+  }
+
+  @override
+  Future<void> updateRules(mdl.GroupRules rules) async {
+    await (db.update(db.groupSettings)..where((g) => g.id.equals(1))).write(
+      GroupSettingsCompanion(
+        shareValue: Value(rules.shareValue),
+        minShares: Value(rules.minShares),
+        maxShares: Value(rules.maxShares),
+        socialFundPerMtg: Value(rules.socialFundPerMtg),
+        interestRatePct: Value(rules.interestRatePct),
+        loanMultiplier: Value(rules.loanMultiplier),
+        loanDurationMonths: Value(rules.loanDurationMonths),
+        maxRepaymentMonths: Value(rules.maxRepaymentMonths),
+        requiredGuarantors: Value(rules.requiredGuarantors),
+        cycleMonths: Value(rules.cycleMonths),
+        quorumPercent: Value(rules.quorumPercent),
+        meetingFrequency: Value(rules.meetingFrequency),
+        meetingStartTime: Value(rules.meetingStartTime),
+        meetingLocation: Value(rules.meetingLocation),
+        fineTypes:
+            Value(jsonEncode([for (final f in rules.fineTypes) f.toJson()])),
+      ),
     );
   }
 
@@ -445,6 +547,7 @@ class DriftRepository implements Repository {
     required DateTime date,
     required mdl.SavingType type,
     required String method,
+    bool asRequest = false,
   }) {
     return db.into(db.savings).insert(SavingsCompanion.insert(
           id: _id('S'),
@@ -453,7 +556,22 @@ class DriftRepository implements Repository {
           type: type.name,
           method: method,
           date: date,
+          status: Value(asRequest ? 'pending' : 'confirmed'),
         ));
+  }
+
+  @override
+  Future<void> approveSaving(String id) async {
+    await (db.update(db.savings)
+          ..where((s) => s.id.equals(id) & s.status.equals('pending')))
+        .write(const SavingsCompanion(status: Value('confirmed')));
+  }
+
+  @override
+  Future<void> rejectSaving(String id) async {
+    await (db.delete(db.savings)
+          ..where((s) => s.id.equals(id) & s.status.equals('pending')))
+        .go();
   }
 
   @override

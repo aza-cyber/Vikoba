@@ -8,6 +8,7 @@ import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
 import '../shell/app_state_route.dart';
 import '../shell/shell_scope.dart';
+import 'import_members_screen.dart';
 import 'member_profile_screen.dart';
 import 'membership_requests_screen.dart';
 
@@ -34,6 +35,12 @@ class _MembersScreenState extends State<MembersScreen> {
         leading: const ShellLeading(),
         title: Text(locale.t('members_title')),
         actions: [
+          IconButton(
+            tooltip: locale.t('import_members'),
+            icon: const Icon(Icons.upload_file_outlined),
+            onPressed: () => Navigator.of(context)
+                .push(appStateRoute(context, const ImportMembersScreen())),
+          ),
           IconButton(
             tooltip: locale.t('membership_requests'),
             onPressed: () => Navigator.of(context)
@@ -86,9 +93,19 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
           Expanded(
             child: members.isEmpty
-                ? Center(
-                    child: Text(locale.t('search_member'),
-                        style: const TextStyle(color: AppColors.textMuted)))
+                ? EmptyState(
+                    icon: _query.isEmpty
+                        ? Icons.groups_outlined
+                        : Icons.search_off_rounded,
+                    title: _query.isEmpty
+                        ? locale.t('no_members_yet')
+                        : locale.t('no_matches'),
+                    actionLabel:
+                        _query.isEmpty ? locale.t('add_member') : null,
+                    onAction: _query.isEmpty
+                        ? () => _showAddMember(context, locale)
+                        : null,
+                  )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
                     itemCount: members.length,

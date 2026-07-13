@@ -13,6 +13,20 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+/// The outcome of requesting an SMS login code ([Repository.requestOtp]).
+/// [ok] is true when the request was accepted (a code was sent to the phone if
+/// it belongs to an active member — the server does not reveal whether it did,
+/// to avoid leaking who is registered). [errorKey] is a locale key describing a
+/// rejection (e.g. 'otp_too_soon'). [devCode] is only ever set when the backend
+/// has no live SMS gateway configured, so development builds can complete the
+/// flow without an SMS account.
+class OtpRequestResult {
+  final bool ok;
+  final String? errorKey;
+  final String? devCode;
+  const OtpRequestResult({required this.ok, this.errorKey, this.devCode});
+}
+
 /// The identity returned by a successful [Repository.login]: who the member is
 /// and which panel (admin vs member) they should see.
 class AuthResult {
@@ -59,12 +73,37 @@ abstract class Repository {
   /// subsequent calls are authenticated.
   Future<AuthResult?> login({required String phone, required String password});
 
+  /// Requests an SMS one-time passcode for [phone]. Online only; the offline
+  /// (Drift) store has no way to send SMS, so it reports unsupported. Never
+  /// throws — transport failures come back as [OtpRequestResult.ok] == false.
+  Future<OtpRequestResult> requestOtp({required String phone});
+
+  /// Verifies an SMS [code] for [phone] and, on success, starts a session —
+  /// returning the same identity a password [login] would. Returns null if the
+  /// code is wrong/expired. Online only; offline returns null.
+  Future<AuthResult?> verifyOtp({required String phone, required String code});
+
+  /// Registers this device's push (FCM) [token] with the backend so the group's
+  /// server can notify this member. Online only; offline is a no-op. Never
+  /// throws — a failure just means notifications won't arrive.
+  Future<void> registerDevice({required String token, required String platform});
+
+  /// Removes this device's push [token] from the backend (called at sign-out).
+  /// Online only; offline is a no-op. Never throws.
+  Future<void> unregisterDevice(String token);
+
   /// Ends the current session: revokes the token server-side (online) and clears
   /// it locally so later calls are no longer authenticated. Never throws.
   Future<void> endSession();
 
   /// Reads everything back as a fully-derived snapshot.
   Future<Snapshot> loadSnapshot();
+
+  /// Admin: replaces this group's editable rulebook (share value, loan terms,
+  /// meeting cadence, quorum, fine catalogue). Online this hits
+  /// `POST /settings/rules` (server-validated, admin-scoped); offline it writes
+  /// the `group_settings` row. The change is picked up on the next snapshot.
+  Future<void> updateRules(GroupRules rules);
 
   Future<void> insertMember({
     required String name,
@@ -109,7 +148,17 @@ abstract class Repository {
     required DateTime date,
     required SavingType type,
     required String method,
+    // When true the deposit is recorded as a pending member request awaiting an
+    // officer's approval (offline). Online the server decides pending-vs-
+    // confirmed from the caller's role, so this is a no-op there.
+    bool asRequest,
   });
+
+  /// Officer: confirms a member's pending deposit so it counts toward balances.
+  Future<void> approveSaving(String id);
+
+  /// Officer: declines a member's pending deposit (the row is discarded).
+  Future<void> rejectSaving(String id);
 
   Future<void> insertLoan({
     required String memberId,

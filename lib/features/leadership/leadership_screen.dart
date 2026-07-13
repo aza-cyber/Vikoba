@@ -71,6 +71,7 @@ class LeadershipScreen extends StatelessWidget {
       if (appState.isAdmin) {
         final created = await _createFirstMember(context);
         if (created == null) return;
+        if (!context.mounted) return;
         members = appState.members;
       }
     }

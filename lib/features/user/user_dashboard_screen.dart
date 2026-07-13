@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/data/group_defaults.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
+import '../shell/app_state_route.dart';
+import 'deposit_screen.dart';
 
 /// The home screen of the member (user) panel: a personal dashboard showing the
 /// logged-in member's own savings, loan balance, fines, shares and history.
@@ -84,11 +85,28 @@ class UserDashboardScreen extends StatelessWidget {
                   label:
                       '${locale.t('max_loan')} (${locale.t('based_on_shares')})',
                   value: Fmt.tzs(me.shares *
-                      GroupDefaults.shareValue *
-                      GroupDefaults.loanMultiplier),
+                      state.rules.shareValue *
+                      state.rules.loanMultiplier),
                   color: AppColors.shareOut,
                   background: AppColors.cardBlueBg,
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context)
+                        .push(appStateRoute(context, const DepositScreen())),
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: Text(locale.t('make_deposit')),
+                  ),
+                ),
+                if (state.myPendingDeposits.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  SectionHeader(title: locale.t('pending_deposits')),
+                  const SizedBox(height: 8),
+                  for (final d in state.myPendingDeposits)
+                    _PendingDepositTile(deposit: d, locale: locale),
+                ],
                 const SizedBox(height: 22),
                 SectionHeader(title: locale.t('recent_activity')),
                 const SizedBox(height: 12),
@@ -96,6 +114,50 @@ class UserDashboardScreen extends StatelessWidget {
               ],
               ),
             ),
+    );
+  }
+}
+
+/// A member's own pending deposit, shown on their dashboard until an officer
+/// confirms or rejects it.
+class _PendingDepositTile extends StatelessWidget {
+  final SavingRequest deposit;
+  final LocaleProvider locale;
+  const _PendingDepositTile({required this.deposit, required this.locale});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            const Icon(Icons.hourglass_top_rounded,
+                size: 20, color: AppColors.meetings),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(Fmt.tzs(deposit.amount),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('${deposit.method} · ${Fmt.date(deposit.requestedOn)}',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+            StatusChip(
+              label: locale.t('pending'),
+              color: AppColors.meetings,
+              background: AppColors.cardBlueBg,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -15,6 +15,7 @@ import '../shell/main_shell.dart';
 import '../shell/user_shell.dart';
 import '../superadmin/groups_admin_screen.dart';
 import 'group_login.dart';
+import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,7 +25,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _phone = TextEditingController(text: '+255 ');
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _server = TextEditingController();
   final _requestName = TextEditingController();
@@ -54,6 +55,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _requestShares.dispose();
     super.dispose();
   }
+
+  /// The member's full phone: the fixed +255 country code plus the national
+  /// number typed into the field (which no longer carries the prefix itself).
+  String get _fullPhone => '+255 ${_phone.text.trim()}';
 
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
@@ -93,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (Config.useApi) {
       // Online: the backend authenticates and scopes the member to their group.
       final role = await appState.login(
-        phone: _phone.text,
+        phone: _fullPhone,
         password: _password.text.trim(),
       );
       if (!mounted) return;
@@ -114,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final session = await resolveGroupLogin(
       defaultState: appState,
       groups: groups,
-      phone: _phone.text,
+      phone: _fullPhone,
       password: _password.text.trim(),
     );
     if (!mounted) return;
@@ -124,6 +129,39 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     _openShell(session.role, session.state);
+  }
+
+  /// Starts SMS sign-in: requests a one-time code for the entered phone and, on
+  /// success, opens the code-entry screen. Only offered online (API mode), where
+  /// the backend can text the code.
+  Future<void> _loginWithSms() async {
+    FocusScope.of(context).unfocus();
+    final locale = context.read<LocaleProvider>();
+    final phoneDigits = _phone.text.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length < 9) {
+      _showError(locale.t('phone_required'));
+      return;
+    }
+    setState(() => _loggingIn = true);
+    final result =
+        await context.read<AppState>().requestLoginOtp(phone: _fullPhone);
+    if (!mounted) return;
+    setState(() => _loggingIn = false);
+    if (!result.ok) {
+      _showError(locale.t(result.errorKey ?? 'otp_send_failed'));
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider<AppState>.value(
+          value: context.read<AppState>(),
+          child: OtpVerifyScreen(
+            phone: _fullPhone,
+            devCode: result.devCode,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Opens the admin or member panel scoped to [state] — the group the member
@@ -365,199 +403,314 @@ class _LoginScreenState extends State<LoginScreen> {
     final appState = context.watch<AppState>();
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (appState.connectionError) const _ConnectionBanner(),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => locale.toggle(),
-                  icon: const Icon(Icons.language, size: 18),
-                  label: Text(locale.isSwahili ? 'English' : 'Kiswahili'),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const _Logo(),
-              const SizedBox(height: 36),
-              Text(
-                locale.t('welcome_back'),
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                locale.t('login_subtitle'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                locale.t('login_role_hint'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 12.5, height: 1.35),
-              ),
-              const SizedBox(height: 32),
-              _label(locale.t('phone_number')),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
-                // Same rule as the member form: allow a +255/0 prefix but cap
-                // the national number at 9 digits.
-                inputFormatters: [TzPhoneInputFormatter()],
-                decoration: const InputDecoration(hintText: '+255 7XX XXX XXX'),
-              ),
-              const SizedBox(height: 18),
-              _label(locale.t('password')),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _password,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  hintText: locale.t('pin_hint'),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
-                        color: AppColors.textMuted),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loggingIn ? null : _login,
-                child: _loggingIn
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(locale.t('login')),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: TextButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(locale.t('reset_pin_hint'))),
-                  ),
-                  child: Text(locale.t('forgot_pin'),
-                      style: const TextStyle(color: AppColors.textSecondary)),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(locale.t('no_account'),
-                        style: const TextStyle(color: AppColors.textSecondary)),
-                    const SizedBox(width: 4),
-                    TextButton(
-                      onPressed: _showMembershipRequest,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(locale.t('ask_admin_register'),
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+      body: SingleChildScrollView(
+        // Keep the form a comfortable reading width and centre it, so the
+        // screen stays tidy on tablets and the web build.
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _hero(locale),
+                // The form sheet lifts up over the hero's base, so its rounded
+                // top corners reveal the green behind them — a modern overlap.
+                Transform.translate(
+                  offset: const Offset(0, -26),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
                     ),
-                  ],
-                ),
-              ),
-              // Server address — only relevant in online (API) mode. Lets you
-              // repoint the app at the PC's current IP after a Wi-Fi change
-              // without rebuilding the APK.
-              if (Config.useApi) ...[
-                const SizedBox(height: 28),
-                const Divider(height: 1),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () => setState(
-                      () => _showAdvancedServer = !_showAdvancedServer),
-                  icon: Icon(_showAdvancedServer
-                      ? Icons.expand_less
-                      : Icons.expand_more),
-                  label: Text(locale.t('advanced_settings')),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary),
-                ),
-                if (_showAdvancedServer) ...[
-                  const SizedBox(height: 8),
-                  _label(locale.t('server_address')),
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _server,
-                          keyboardType: TextInputType.url,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          decoration: InputDecoration(
-                              hintText: '192.168.1.20:${Config.apiPort}'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          // The app-wide button theme uses Size.fromHeight
-                          // (full width); override with a finite min width.
-                          style: ElevatedButton.styleFrom(
-                              minimumSize: const Size(80, 48)),
-                          onPressed: _savingServer ? null : _saveServer,
-                          child: _savingServer
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : Text(locale.t('save')),
-                        ),
-                      ),
-                    ],
+                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (appState.connectionError) ...[
+                          const _ConnectionBanner(),
+                          const SizedBox(height: 8),
+                        ],
+                        _credentialsForm(locale),
+                        const SizedBox(height: 22),
+                        _primaryActions(locale),
+                        const SizedBox(height: 18),
+                        _helpLinks(locale),
+                        // Server address — only relevant in online (API) mode.
+                        if (Config.useApi) _advancedServer(locale),
+                        const SizedBox(height: 12),
+                        _footer(locale),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ],
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton.icon(
-                  onPressed: _loggingIn ? null : _showSuperAdminLogin,
-                  icon: const Icon(Icons.shield_outlined, size: 18),
-                  label: Text(locale.t('super_admin_login')),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: Text(
-                  '${locale.t('version_label')} ${Config.appVersion}',
-                  style: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 11.5),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  /// The branded header: a green gradient banner with a curved base, holding the
+  /// language pill, the logo in a floating white badge, and the app wordmark +
+  /// tagline. Gives the screen an immediate, attractive brand identity.
+  Widget _hero(LocaleProvider locale) {
+    final topInset = MediaQuery.of(context).padding.top;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(24, topInset + 14, 24, 46),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.primary, AppColors.primaryDark],
+        ),
+      ),
+      child: Column(
+        children: [
+          Align(alignment: Alignment.centerRight, child: _langPill(locale)),
+          const SizedBox(height: 4),
+          // Logo in a floating white circle. A long-press here is the discreet,
+          // unadvertised entry to the super-admin sign-in — there is no visible
+          // button for it, keeping that privileged path off the screen.
+          GestureDetector(
+            onLongPress: _loggingIn ? null : _showSuperAdminLogin,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const AppLogo(
+                size: 96,
+                backgroundColor: Colors.transparent,
+                borderWidth: 0,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            locale.t('app_tagline'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            locale.t('app_descriptor'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w500,
+              fontSize: 13.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Translucent language switch pill, sat in the top-right of the hero.
+  Widget _langPill(LocaleProvider locale) => Material(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(30),
+        child: InkWell(
+          onTap: () => locale.toggle(),
+          borderRadius: BorderRadius.circular(30),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.language, size: 16, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(locale.isSwahili ? 'English' : 'Kiswahili',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  /// Phone number and PIN inputs.
+  Widget _credentialsForm(LocaleProvider locale) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _label(locale.t('phone_number')),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            // The national number is entered here; the fixed +255 country code
+            // is shown as a prefix and prepended at sign-in.
+            inputFormatters: [TzPhoneInputFormatter()],
+            decoration: InputDecoration(
+              hintText: locale.t('enter_phone'),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 10, 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text('+255',
+                        style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16)),
+                  ],
+                ),
+              ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
+              suffixIcon: const Icon(Icons.keyboard_arrow_down,
+                  color: AppColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _label(locale.t('password')),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _password,
+            obscureText: _obscure,
+            decoration: InputDecoration(
+              hintText: locale.t('pin_hint'),
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscure ? Icons.visibility_off : Icons.visibility,
+                    color: AppColors.textMuted),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+        ],
+      );
+
+  /// Primary sign-in button, plus the SMS option in online mode.
+  Widget _primaryActions(LocaleProvider locale) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton(
+            onPressed: _loggingIn ? null : _login,
+            child: _loggingIn ? _buttonSpinner() : Text(locale.t('login')),
+          ),
+          // SMS sign-in needs the backend to text a code, so it's only
+          // offered in online (API) mode.
+          if (Config.useApi) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _loggingIn ? null : _loginWithSms,
+              icon: const Icon(Icons.sms_outlined, size: 18),
+              label: Text(locale.t('login_with_sms')),
+            ),
+          ],
+        ],
+      );
+
+  /// Forgot-PIN prompt and the membership-request link, framed by divider lines.
+  Widget _helpLinks(LocaleProvider locale) => Column(
+        children: [
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(locale.t('reset_pin_hint'))),
+            ),
+            child: Text(locale.t('forgot_pin'),
+                style: const TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: _showMembershipRequest,
+            child: Text(locale.t('ask_admin_register'),
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 6),
+          const Divider(height: 1, color: AppColors.border),
+        ],
+      );
+
+  /// Collapsible server-address panel. Lets you repoint the app at the PC's
+  /// current IP after a Wi-Fi change without rebuilding the APK.
+  Widget _advancedServer(LocaleProvider locale) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 28),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () =>
+                setState(() => _showAdvancedServer = !_showAdvancedServer),
+            icon: Icon(
+                _showAdvancedServer ? Icons.expand_less : Icons.expand_more),
+            label: Text(locale.t('advanced_settings')),
+            style:
+                TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+          ),
+          if (_showAdvancedServer) ...[
+            const SizedBox(height: 8),
+            _label(locale.t('server_address')),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _server,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                        hintText: '192.168.1.20:${Config.apiPort}'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    // The app-wide button theme uses Size.fromHeight
+                    // (full width); override with a finite min width.
+                    style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(80, 48)),
+                    onPressed: _savingServer ? null : _saveServer,
+                    child: _savingServer
+                        ? _buttonSpinner(18)
+                        : Text(locale.t('save')),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+
+  /// App version string. The super-admin sign-in has no visible control here;
+  /// it is reached only by long-pressing the logo (see [_hero]).
+  Widget _footer(LocaleProvider locale) => Column(
+        children: [
+          Center(
+            child: Text(
+              '${locale.t('version_label')} ${Config.appVersion}',
+              style: const TextStyle(
+                  color: AppColors.textMuted, fontSize: 11.5),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      );
 
   Widget _label(String text) => Align(
         alignment: Alignment.centerLeft,
@@ -566,6 +719,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
                 fontSize: 13)),
+      );
+
+  /// White spinner sized to sit inside a filled button while it's busy.
+  Widget _buttonSpinner([double size = 20]) => SizedBox(
+        width: size,
+        height: size,
+        child: const CircularProgressIndicator(
+            strokeWidth: 2, color: Colors.white),
       );
 }
 
@@ -632,45 +793,3 @@ class _ConnectionBannerState extends State<_ConnectionBanner> {
   }
 }
 
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = context.read<LocaleProvider>();
-    return Column(
-      children: [
-        const AppLogo(
-          width: 184,
-          height: 112,
-          backgroundColor: Colors.transparent,
-          borderWidth: 0,
-          padding: EdgeInsets.zero,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          locale.t('app_name'),
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primary,
-            letterSpacing: 1.5,
-          ),
-        ),
-        Text(
-          locale.t('app_tagline'),
-          style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-              fontSize: 13),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          locale.t('app_descriptor'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-        ),
-      ],
-    );
-  }
-}

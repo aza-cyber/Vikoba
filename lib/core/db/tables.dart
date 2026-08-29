@@ -4,6 +4,13 @@ import 'package:drift/drift.dart';
 /// member/loan balances are NOT stored here — they are derived from the
 /// transaction rows (savings, repayments, fines) when the snapshot is built.
 
+/// The fine-type catalogue a fresh group starts with, as a JSON array of
+/// {name, amount}. Stored in [GroupSettings.fineTypes]; editable per group.
+const kDefaultFineTypesJson =
+    '[{"name":"Kutohudhuria mkutano","amount":5000},'
+    '{"name":"Kuchelewa malipo","amount":2000},'
+    '{"name":"Nyingine","amount":1000}]';
+
 /// Single-row table holding the group identity + constitution/rule settings.
 class GroupSettings extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
@@ -26,6 +33,17 @@ class GroupSettings extends Table {
   RealColumn get otherExpense => real().withDefault(const Constant(0))();
   RealColumn get openingCash => real().withDefault(const Constant(0))();
   RealColumn get openingSocialFund => real().withDefault(const Constant(0))();
+  // Rule fields the app used to keep device-global; now per-group so two groups
+  // can run different loan/meeting/fine rules. fineTypes is a JSON array.
+  IntColumn get loanDurationMonths => integer().withDefault(const Constant(3))();
+  IntColumn get quorumPercent => integer().withDefault(const Constant(50))();
+  TextColumn get meetingFrequency =>
+      text().withDefault(const Constant('weekly'))();
+  TextColumn get meetingStartTime =>
+      text().withDefault(const Constant('10:00'))();
+  TextColumn get meetingLocation => text().withDefault(const Constant(''))();
+  TextColumn get fineTypes =>
+      text().withDefault(const Constant(kDefaultFineTypesJson))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -49,6 +67,27 @@ class Savings extends Table {
   TextColumn get type => text()(); // regular | special | social
   TextColumn get method => text()();
   DateTimeColumn get date => dateTime()();
+  // confirmed (counts toward balances) | pending (a member-submitted deposit
+  // awaiting an officer's approval). Officer-recorded savings are confirmed.
+  TextColumn get status => text().withDefault(const Constant('confirmed'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A member's share purchase — buying [shareCount] shares for [amount] money
+/// (shareCount × the share price at purchase time). Like [Savings] it carries a
+/// status: 'confirmed' (owned + counts toward the fund) or 'pending' (a member
+/// bought shares, awaiting an officer's approval). Owned shares are derived by
+/// summing confirmed purchases on top of the member's opening [Members.shares].
+class ShareTx extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()();
+  IntColumn get shareCount => integer()();
+  RealColumn get amount => real()();
+  TextColumn get method => text().withDefault(const Constant('cash'))();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get status => text().withDefault(const Constant('confirmed'))();
 
   @override
   Set<Column> get primaryKey => {id};

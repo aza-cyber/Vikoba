@@ -22,6 +22,17 @@ dependencies:
   # PDF generation and cross-platform save/share/print support for reports.
   pdf: ^3.11.1
   printing: ^5.13.4
+  # Native .xlsx (Excel) workbook generation for reports and bulk-member import.
+  excel: ^4.0.6
+  # File picker for the admin's bulk-member Excel upload.
+  file_picker: ^8.1.2
+  # Cross-platform share sheet for non-PDF files (the Excel export).
+  share_plus: ^10.1.2
+  # Push notifications (Firebase Cloud Messaging). Initialisation is guarded, so
+  # the app still runs if Firebase isn't configured yet — see PushService and
+  # docs/PUSH_SETUP.md for the one-time Firebase project setup that activates it.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
   # Kept for migrating any data written by the previous shared_preferences build.
   shared_preferences: ^2.3.2
   # Loose constraint: flutter_localizations pins the exact intl version for the

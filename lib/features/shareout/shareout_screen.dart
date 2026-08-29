@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/data/group_defaults.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
@@ -25,7 +24,7 @@ class ShareOutScreen extends StatelessWidget {
     double dividendFor(int shares) =>
         totalShares == 0 ? 0 : profit * shares / totalShares;
     double payoutFor(int shares) =>
-        shares * GroupDefaults.shareValue + dividendFor(shares);
+        shares * state.rules.shareValue + dividendFor(shares);
 
     final totalPayout =
         members.fold<double>(0, (sum, m) => sum + payoutFor(m.shares));
@@ -123,9 +122,10 @@ class _CycleProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const elapsed = GroupDefaults.cycleMonthsElapsed;
-    const total = GroupDefaults.cycleMonths;
-    const progress = total == 0 ? 0.0 : elapsed / total;
+    final rules = context.watch<AppState>().rules;
+    final elapsed = rules.cycleMonthsElapsed;
+    final total = rules.cycleMonths;
+    final progress = total == 0 ? 0.0 : elapsed / total;
     final label = locale
         .t('month_of')
         .replaceFirst('{a}', '$elapsed')

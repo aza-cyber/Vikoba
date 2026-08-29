@@ -4,6 +4,7 @@ import '../server_config.dart';
 import '../data/api_repository.dart';
 import '../data/repository_base.dart';
 import '../models/models.dart';
+import '../services/push_service.dart';
 
 /// An immutable, fully-computed view of the group at a point in time. Member
 /// and loan balances here are already derived from the transaction rows by the
@@ -13,6 +14,8 @@ class Snapshot {
   final String term;
   final List<Member> members;
   final List<MembershipRequest> membershipRequests;
+  final List<SavingRequest> savingsRequests;
+  final List<ShareRequest> shareRequests;
   final List<Loan> loans;
   final List<SavingEntry> savings;
   final List<Repayment> repayments;
@@ -31,13 +34,22 @@ class Snapshot {
   final double otherExpense;
   final double interestEarned;
   final double shareValue;
+  /// Money members have paid to buy shares (confirmed purchases only). Part of
+  /// cash in hand; tracked separately so the share capital can be reported.
+  final double shareCapitalCollected;
   final int meetingsHeld;
+
+  /// The group's full editable rulebook (share price, loan terms, meeting
+  /// cadence, quorum, fine catalogue). Screens read rule values from here.
+  final GroupRules rules;
 
   const Snapshot({
     required this.groupName,
     required this.term,
     required this.members,
     this.membershipRequests = const [],
+    this.savingsRequests = const [],
+    this.shareRequests = const [],
     required this.loans,
     required this.savings,
     required this.repayments,
@@ -56,23 +68,27 @@ class Snapshot {
     required this.otherExpense,
     required this.interestEarned,
     required this.shareValue,
+    this.shareCapitalCollected = 0,
     required this.meetingsHeld,
+    required this.rules,
   });
 
   /// An all-zero snapshot used when the backend can't be reached at startup, so
   /// the app still launches (with a retry) instead of hanging on a blank screen.
-  factory Snapshot.empty() => const Snapshot(
+  /// Not const: [rules] defaults to a fresh [GroupRules.defaults] so screens
+  /// always have a valid rulebook to read even before any data loads.
+  factory Snapshot.empty() => Snapshot(
         groupName: '',
         term: '',
-        members: [],
-        membershipRequests: [],
-        loans: [],
-        savings: [],
-        repayments: [],
-        fines: [],
-        meetings: [],
-        officers: [],
-        activities: [],
+        members: const [],
+        membershipRequests: const [],
+        loans: const [],
+        savings: const [],
+        repayments: const [],
+        fines: const [],
+        meetings: const [],
+        officers: const [],
+        activities: const [],
         cashInHand: 0,
         socialFundBalance: 0,
         savingsCollected: 0,
@@ -84,6 +100,7 @@ class Snapshot {
         interestEarned: 0,
         shareValue: 0,
         meetingsHeld: 0,
+        rules: GroupRules.defaults(),
       );
 }
 
@@ -118,6 +135,13 @@ class AppState extends ChangeNotifier {
   /// True when the last snapshot load failed (e.g. the backend is unreachable).
   /// The UI shows a retry affordance instead of silently empty data.
   bool get connectionError => _loadError;
+
+  bool _isLoading = false;
+
+  /// True while a snapshot fetch is in flight. The UI shows skeleton
+  /// placeholders on the first load (when there is no data yet) instead of a
+  /// screen full of zeros.
+  bool get isLoading => _isLoading;
 
   String? _loginErrorKey;
 
@@ -179,6 +203,7 @@ class AppState extends ChangeNotifier {
       // The ledger is protected: it can only be loaded once we hold a session
       // token, so we fetch it here (not at startup) before showing the panels.
       await _reload();
+      await _registerPush();
       _loginErrorKey = null;
       notifyListeners();
       return isAdmin ? MemberRole.admin : MemberRole.member;
@@ -194,9 +219,67 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Asks the backend to text an SMS login code to [phone]. Never throws — a
+  /// failure comes back as [OtpRequestResult.ok] == false with an [errorKey].
+  Future<OtpRequestResult> requestLoginOtp({required String phone}) async {
+    final repo = _repo;
+    if (repo == null) {
+      return const OtpRequestResult(ok: false, errorKey: 'login_failed');
+    }
+    return repo.requestOtp(phone: phone);
+  }
+
+  /// Verifies an SMS [code] for [phone] and, on success, starts a session —
+  /// exactly like [login] but authenticated by the code instead of a PIN.
+  /// Returns the role to route to, or null on failure. Never throws.
+  Future<MemberRole?> verifyLoginOtp({
+    required String phone,
+    required String code,
+  }) async {
+    final repo = _repo;
+    if (repo == null) {
+      _loginErrorKey = 'login_failed';
+      return null;
+    }
+    try {
+      final auth = await repo.verifyOtp(phone: phone, code: code);
+      if (auth == null) {
+        _loginErrorKey = 'otp_wrong_code';
+        return null;
+      }
+      _sessionMemberId = auth.memberId;
+      _sessionRole = auth.role;
+      _sessionGroupId = auth.groupId;
+      _sessionGroupName = auth.groupName;
+      await _reload();
+      await _registerPush();
+      _loginErrorKey = null;
+      notifyListeners();
+      return isAdmin ? MemberRole.admin : MemberRole.member;
+    } on ApiException catch (e) {
+      _loginErrorKey =
+          e.statusCode == 403 ? 'account_inactive' : 'otp_wrong_code';
+      return null;
+    } catch (_) {
+      _loginErrorKey = 'connection_error';
+      return null;
+    }
+  }
+
+  /// Registers this device's push token with the backend so the server can
+  /// notify this member (loans, meetings, fines). Best-effort and a no-op when
+  /// push isn't available (Firebase not configured, or offline mode).
+  Future<void> _registerPush() async {
+    final repo = _repo;
+    if (repo == null || !PushService.instance.isAvailable) return;
+    await PushService.instance.registerWith(repo);
+  }
+
   /// Ends the current session: revokes the token server-side and clears the
   /// in-memory session and cached ledger so nothing leaks after sign-out.
   Future<void> logout() async {
+    final repo = _repo;
+    if (repo != null) await PushService.instance.unregisterFrom(repo);
     await _repo?.endSession();
     _sessionMemberId = null;
     _sessionRole = MemberRole.member;
@@ -265,12 +348,15 @@ class AppState extends ChangeNotifier {
   Future<void> _reload() async {
     final repo = _repo;
     if (repo == null) return;
+    _isLoading = true;
+    notifyListeners();
     try {
       _snapshot = await repo.loadSnapshot();
       _loadError = false;
     } catch (_) {
       _loadError = true;
     }
+    _isLoading = false;
     notifyListeners();
   }
 
@@ -315,6 +401,16 @@ class AppState extends ChangeNotifier {
   double get interestEarned => _snapshot.interestEarned;
   int get meetingsHeld => _snapshot.meetingsHeld;
 
+  /// The group's editable rulebook (share value, loan terms, meeting cadence,
+  /// quorum, fine catalogue). Screens read every per-group rule from here.
+  GroupRules get rules => _snapshot.rules;
+
+  /// Admin: saves a new rulebook for this group (server-validated online, or the
+  /// local DB row offline), then reloads. Returns null on success or a
+  /// human-readable error message.
+  Future<String?> updateRules(GroupRules rules) =>
+      _run(() => _repo!.updateRules(rules));
+
   List<Loan> get ongoingLoans =>
       _snapshot.loans.where((l) => l.status == LoanStatus.ongoing).toList();
 
@@ -326,6 +422,28 @@ class AppState extends ChangeNotifier {
       .membershipRequests
       .where((r) => r.status == MembershipRequestStatus.pending)
       .toList();
+
+  /// Member-submitted deposits awaiting an officer's confirmation (approval
+  /// queue for officers).
+  List<SavingRequest> get savingsRequests => _snapshot.savingsRequests;
+
+  /// The signed-in member's own pending deposits (shown on their dashboard).
+  List<SavingRequest> get myPendingDeposits {
+    final id = currentMember?.id;
+    if (id == null) return const [];
+    return _snapshot.savingsRequests.where((s) => s.memberId == id).toList();
+  }
+
+  /// Member-submitted share purchases awaiting an officer's confirmation
+  /// (approval queue for officers).
+  List<ShareRequest> get shareRequests => _snapshot.shareRequests;
+
+  /// The signed-in member's own pending share purchases.
+  List<ShareRequest> get myPendingShares {
+    final id = currentMember?.id;
+    if (id == null) return const [];
+    return _snapshot.shareRequests.where((s) => s.memberId == id).toList();
+  }
 
   /// This loan's repayments, newest first — its repayment history.
   List<Repayment> repaymentsForLoan(String loanId) {
@@ -342,6 +460,9 @@ class AppState extends ChangeNotifier {
   int get membersCount => _snapshot.members.length;
   int get totalShares => _snapshot.members.fold(0, (sum, m) => sum + m.shares);
   double get shareCapital => totalShares * _snapshot.shareValue;
+
+  /// Money members have actually paid to own their shares (confirmed purchases).
+  double get shareCapitalCollected => _snapshot.shareCapitalCollected;
   double get distributableProfit => interestEarned + finesCollected;
   double get totalIncome =>
       savingsCollected + repaymentsCollected + finesCollected;
@@ -386,6 +507,29 @@ class AppState extends ChangeNotifier {
     if (name.trim().isEmpty) return 'Name is required.';
     return _run(() => _repo!
         .insertMember(name: name.trim(), phone: phone.trim(), shares: shares));
+  }
+
+  /// Bulk-adds members from an Excel import. Inserts each draft (a row the
+  /// caller already validated), counting the ones the store/server still
+  /// rejects — e.g. a duplicate phone — as failed rather than aborting the whole
+  /// batch. Reloads the snapshot ONCE at the end, not per row. Returns
+  /// (added, failed).
+  Future<(int, int)> importMembers(
+      List<({String name, String phone, int shares})> drafts) async {
+    final repo = _repo;
+    if (repo == null) return (0, drafts.length);
+    var added = 0, failed = 0;
+    for (final d in drafts) {
+      try {
+        await repo.insertMember(
+            name: d.name.trim(), phone: d.phone.trim(), shares: d.shares);
+        added++;
+      } catch (_) {
+        failed++;
+      }
+    }
+    await _reload();
+    return (added, failed);
   }
 
   Future<String?> requestMembership({
@@ -495,6 +639,74 @@ class AppState extends ChangeNotifier {
         date: date,
         type: type,
         method: method));
+  }
+
+  /// Member: submits a deposit for their own account, pending an officer's
+  /// confirmation before it counts toward their savings.
+  Future<String?> requestDeposit({
+    required double amount,
+    required SavingType type,
+    required String method,
+  }) async {
+    if (_repo == null) return 'Not connected.';
+    final me = currentMember;
+    if (me == null) return 'Not signed in.';
+    if (amount <= 0) return 'Amount must be greater than zero.';
+    return _run(() => _repo!.insertSaving(
+          memberId: me.id,
+          amount: amount,
+          date: DateTime.now(),
+          type: type,
+          method: method,
+          asRequest: true,
+        ));
+  }
+
+  /// Officer: confirms a member's pending deposit so it counts toward balances.
+  Future<String?> approveSaving(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.approveSaving(id));
+  }
+
+  /// Officer: declines a member's pending deposit (discarded).
+  Future<String?> rejectSaving(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.rejectSaving(id));
+  }
+
+  /// Member: applies to buy [shareCount] shares for their own account, paying
+  /// the current share price per share. Recorded as pending until an officer
+  /// approves it, at which point the shares are credited and the money counts.
+  Future<String?> requestShares({
+    required int shareCount,
+    required String method,
+  }) async {
+    if (_repo == null) return 'Not connected.';
+    final me = currentMember;
+    if (me == null) return 'Not signed in.';
+    if (shareCount <= 0) return 'shares_min_one';
+    final amount = shareCount * _snapshot.shareValue;
+    return _run(() => _repo!.insertShareTx(
+          memberId: me.id,
+          shareCount: shareCount,
+          amount: amount,
+          date: DateTime.now(),
+          method: method,
+          asRequest: true,
+        ));
+  }
+
+  /// Officer: confirms a member's pending share purchase — credits the shares
+  /// and books the payment into the group fund.
+  Future<String?> approveShares(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.approveShareTx(id));
+  }
+
+  /// Officer: declines a member's pending share purchase (discarded).
+  Future<String?> rejectShares(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.rejectShareTx(id));
   }
 
   Future<String?> giveLoan({

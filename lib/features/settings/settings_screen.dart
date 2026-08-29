@@ -10,6 +10,7 @@ import 'backup_screen.dart';
 import 'fine_types_screen.dart';
 import 'interest_rates_screen.dart';
 import 'meeting_settings_screen.dart';
+import 'shares_loans_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -46,6 +47,12 @@ class SettingsScreen extends StatelessWidget {
               locale.t('interest_rates'),
               () => Navigator.of(context)
                   .push(appStateRoute(context, const InterestRatesScreen())),
+            ),
+            (
+              Icons.savings_outlined,
+              locale.t('shares_loans_settings'),
+              () => Navigator.of(context)
+                  .push(appStateRoute(context, const SharesLoansScreen())),
             ),
             (
               Icons.event_outlined,

@@ -10,6 +10,7 @@ import '../constitution/constitution_screen.dart';
 import '../leadership/leadership_screen.dart';
 import '../meetings/meetings_screen.dart';
 import '../shell/app_state_route.dart';
+import '../shell/main_shell.dart';
 
 /// The member panel's account tab: the member's profile summary, read-only
 /// group information (leadership, constitution, meetings), language toggle and
@@ -92,6 +93,18 @@ class UserAccountScreen extends StatelessWidget {
                     color: AppColors.primary, fontWeight: FontWeight.w600)),
             onTap: () => locale.toggle(),
           ),
+          // Admins land here when they flip into the member panel; give them a
+          // one-tap way back to the management surface. Regular members are not
+          // admins, so this row stays hidden for them.
+          if (state.isAdmin) ...[
+            const SizedBox(height: 10),
+            _SettingRow(
+              icon: Icons.admin_panel_settings_outlined,
+              label: locale.t('switch_to_admin_view'),
+              color: AppColors.primary,
+              onTap: () => switchShell(context, const MainShell()),
+            ),
+          ],
           const SizedBox(height: 10),
           _SettingRow(
             icon: Icons.logout,

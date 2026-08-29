@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/data/group_defaults.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
-import '../../core/state/settings_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
@@ -27,20 +25,22 @@ class _CreateLoanScreenState extends State<CreateLoanScreen> {
   final _duration = TextEditingController(text: '3');
   final _purpose = TextEditingController(text: '');
 
-  /// VICOBA loan limit: a member may borrow up to [loanMultiplier]x the value
-  /// of the shares they hold.
-  double get _maxLoan =>
-      (_member?.shares ?? 0) * GroupDefaults.shareValue * GroupDefaults.loanMultiplier;
+  /// VICOBA loan limit: a member may borrow up to loanMultiplier× the value of
+  /// the shares they hold, using this group's own configured rules.
+  double get _maxLoan {
+    final r = context.read<AppState>().rules;
+    return (_member?.shares ?? 0) * r.shareValue * r.loanMultiplier;
+  }
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill the loan terms from the group's configured defaults.
-    final s = context.read<SettingsStore>();
-    _interest.text = s.loanInterestRate == s.loanInterestRate.roundToDouble()
-        ? '${s.loanInterestRate.toInt()}'
-        : '${s.loanInterestRate}';
-    _duration.text = '${s.loanDurationMonths}';
+    // Pre-fill the loan terms from this group's configured rules.
+    final r = context.read<AppState>().rules;
+    _interest.text = r.interestRatePct == r.interestRatePct.roundToDouble()
+        ? '${r.interestRatePct.toInt()}'
+        : '${r.interestRatePct}';
+    _duration.text = '${r.loanDurationMonths}';
   }
 
   @override
@@ -74,13 +74,43 @@ class _CreateLoanScreenState extends State<CreateLoanScreen> {
       if (_guarantor2 != null && _guarantor2!.id != _guarantor1?.id)
         _guarantor2!.id,
     ];
+    final guarantorNames = [
+      if (_guarantor1 != null) _guarantor1!.name,
+      if (_guarantor2 != null && _guarantor2!.id != _guarantor1?.id)
+        _guarantor2!.name,
+    ].join(', ');
+    final interestRate = double.tryParse(_interest.text.trim()) ?? 10;
+    final duration = int.tryParse(_duration.text.trim()) ?? 3;
+    final rateText = interestRate == interestRate.roundToDouble()
+        ? '${interestRate.toInt()}%'
+        : '$interestRate%';
+    final appState = context.read<AppState>();
+
+    final ok = await showConfirmSummary(
+      context,
+      title: locale.t('confirm_details'),
+      rows: [
+        (locale.t('member'), member.name),
+        (locale.t('amount'), Fmt.tzs(principal)),
+        (locale.t('interest_rate'), rateText),
+        (locale.t('duration_months'), '$duration'),
+        (locale.t('guarantors'), guarantorNames.isEmpty ? '—' : guarantorNames),
+        (locale.t('due'), Fmt.date(_firstRepayment)),
+        if (_purpose.text.trim().isNotEmpty)
+          (locale.t('loan_purpose'), _purpose.text.trim()),
+      ],
+      confirmLabel: locale.t('confirm'),
+      cancelLabel: locale.t('cancel'),
+    );
+    if (!ok || !mounted) return;
+
     // The server enforces the loan rules (limit, guarantors, available cash);
     // surface its verdict instead of assuming success.
-    final error = await context.read<AppState>().giveLoan(
+    final error = await appState.giveLoan(
           memberId: member.id,
           principal: principal,
-          interestRate: double.tryParse(_interest.text.trim()) ?? 10,
-          durationMonths: int.tryParse(_duration.text.trim()) ?? 3,
+          interestRate: interestRate,
+          durationMonths: duration,
           dueDate: _firstRepayment,
           guarantorIds: guarantors,
         );

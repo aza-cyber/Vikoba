@@ -6,7 +6,10 @@ plugins {
 
 android {
     namespace = "com.example.vikoba"
-    compileSdk = flutter.compileSdkVersion
+    // Recent plugins (file_picker, shared_preferences_android,
+    // flutter_plugin_android_lifecycle) require compileSdk 36, so pin it
+    // explicitly rather than relying on the Flutter default.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

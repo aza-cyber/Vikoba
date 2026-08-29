@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/l10n/locale_provider.dart';
-import '../../core/state/settings_store.dart';
+import '../../core/models/models.dart';
+import '../../core/state/app_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common.dart';
 
-/// Edits meeting defaults: how often the group meets, the default start time and
-/// location (pre-filled when creating a meeting) and the quorum threshold.
+/// Edits this group's meeting defaults: how often it meets, the default start
+/// time and location (pre-filled when creating a meeting) and the quorum
+/// threshold. Saved to the group's rulebook.
 class MeetingSettingsScreen extends StatefulWidget {
   const MeetingSettingsScreen({super.key});
 
@@ -23,11 +25,13 @@ class _MeetingSettingsScreenState extends State<MeetingSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final s = context.read<SettingsStore>();
-    _freq = s.meetingFrequency;
-    _time = _parseTime(s.meetingStartTime);
-    _location = TextEditingController(text: s.meetingLocation);
-    _quorum = TextEditingController(text: '${s.quorumPercent}');
+    final r = context.read<AppState>().rules;
+    _freq = MeetingFrequency.values.firstWhere(
+        (f) => f.name == r.meetingFrequency,
+        orElse: () => MeetingFrequency.weekly);
+    _time = _parseTime(r.meetingStartTime);
+    _location = TextEditingController(text: r.meetingLocation);
+    _quorum = TextEditingController(text: '${r.quorumPercent}');
   }
 
   TimeOfDay _parseTime(String hhmm) {
@@ -55,19 +59,21 @@ class _MeetingSettingsScreenState extends State<MeetingSettingsScreen> {
       };
 
   Future<void> _save(LocaleProvider locale) async {
+    final app = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
-    final quorum = int.tryParse(_quorum.text.trim())?.clamp(0, 100);
-    await context.read<SettingsStore>().setMeetingDefaults(
-          frequency: _freq,
-          startTime: _timeText,
-          location: _location.text.trim(),
-          quorum: quorum,
-        );
+    final quorum = int.tryParse(_quorum.text.trim())?.clamp(0, 100) ??
+        app.rules.quorumPercent;
+    final error = await app.updateRules(app.rules.copyWith(
+      meetingFrequency: _freq.name,
+      meetingStartTime: _timeText,
+      meetingLocation: _location.text.trim(),
+      quorumPercent: quorum,
+    ));
     if (!mounted) return;
     messenger.showSnackBar(SnackBar(
-        backgroundColor: AppColors.primary,
-        content: Text(locale.t('settings_saved'))));
-    Navigator.of(context).maybePop();
+        backgroundColor: error == null ? AppColors.primary : AppColors.fines,
+        content: Text(error ?? locale.t('settings_saved'))));
+    if (error == null) Navigator.of(context).maybePop();
   }
 
   @override

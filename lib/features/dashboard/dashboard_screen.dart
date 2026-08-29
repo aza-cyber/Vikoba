@@ -8,6 +8,7 @@ import '../../widgets/common.dart';
 import '../loans/loan_requests_screen.dart';
 import '../shell/app_state_route.dart';
 import '../shell/shell_scope.dart';
+import 'activity_history_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -29,9 +30,22 @@ class DashboardScreen extends StatelessWidget {
         onRefresh: () async {
           await state.refresh();
         },
-        child: ListView(
+        // First load (no data yet) shows shimmering placeholders rather than a
+        // screen full of zeros; later refreshes keep the data and use the
+        // RefreshIndicator spinner instead.
+        child: state.isLoading && state.groupName.isEmpty
+            ? const _DashboardSkeleton()
+            : ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
           children: [
+            if (state.connectionError) ...[
+              ConnectionBanner(
+                message: locale.t('offline_banner'),
+                retryLabel: locale.t('retry'),
+                onRetry: () => state.refresh(),
+              ),
+              const SizedBox(height: 14),
+            ],
             _GroupBanner(
                 locale: locale, groupName: state.groupName, term: state.term),
             const SizedBox(height: 16),
@@ -105,14 +119,21 @@ class DashboardScreen extends StatelessWidget {
             SectionHeader(
               title: locale.t('recent_activity'),
               actionLabel: locale.t('view_all'),
-              onAction: () {},
+              onAction: () => Navigator.of(context)
+                  .push(appStateRoute(context, const ActivityHistoryScreen())),
             ),
             const SizedBox(height: 12),
             Builder(builder: (context) {
               final recent = state.activities.take(6).toList();
               if (recent.isEmpty) {
-                return const AppCard(
-                  child: Center(child: Text('—')),
+                return AppCard(
+                  child: EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: locale.t('no_activity_yet'),
+                    subtitle: locale.t('no_activity_hint'),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 20),
+                  ),
                 );
               }
               return AppCard(
@@ -122,7 +143,7 @@ class DashboardScreen extends StatelessWidget {
                     for (var i = 0; i < recent.length; i++) ...[
                       if (i > 0)
                         const Divider(height: 1, indent: 60, endIndent: 12),
-                      _ActivityRow(activity: recent[i]),
+                      ActivityRow(activity: recent[i]),
                     ],
                   ],
                 ),
@@ -236,9 +257,9 @@ class _GroupBanner extends StatelessWidget {
   }
 }
 
-class _ActivityRow extends StatelessWidget {
+class ActivityRow extends StatelessWidget {
   final dynamic activity;
-  const _ActivityRow({required this.activity});
+  const ActivityRow({super.key, required this.activity});
 
   @override
   Widget build(BuildContext context) {
@@ -269,6 +290,54 @@ class _ActivityRow extends StatelessWidget {
                 color: AppColors.primary,
                 fontSize: 13.5),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder shown on the dashboard's very first load, sketching
+/// the banner, the metric grid and a few activity rows so the screen reads as
+/// "loading" rather than "empty / all zeros".
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer(
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+        children: [
+          const SkeletonBox(height: 92, radius: 18),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.55,
+            children: List.generate(
+              6,
+              (_) => const SkeletonBox(height: 80, radius: 16),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SkeletonBox(width: 160, height: 18),
+          const SizedBox(height: 14),
+          for (var i = 0; i < 4; i++) ...[
+            Row(
+              children: const [
+                SkeletonBox(width: 40, height: 40, radius: 11),
+                SizedBox(width: 12),
+                Expanded(child: SkeletonBox(height: 14)),
+                SizedBox(width: 12),
+                SkeletonBox(width: 64, height: 14),
+              ],
+            ),
+            const SizedBox(height: 18),
+          ],
         ],
       ),
     );

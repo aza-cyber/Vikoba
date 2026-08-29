@@ -91,6 +91,102 @@ class ApiRepository implements Repository {
   }
 
   @override
+  Future<OtpRequestResult> requestOtp({required String phone}) async {
+    try {
+      final res = await _client
+          .post(
+            _u('/otp/request'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'phone': phone}),
+          )
+          .timeout(_timeout);
+      final j = res.body.isNotEmpty
+          ? jsonDecode(res.body) as Map<String, dynamic>
+          : const <String, dynamic>{};
+      if (res.statusCode == 200 && j['ok'] == true) {
+        return OtpRequestResult(ok: true, devCode: j['devCode'] as String?);
+      }
+      // Map the server's error code to a locale key the UI can display.
+      final error = (j['error'] as String?) ?? '';
+      return OtpRequestResult(ok: false, errorKey: _otpErrorKey(error));
+    } catch (_) {
+      return const OtpRequestResult(ok: false, errorKey: 'connection_error');
+    }
+  }
+
+  /// Translates an /otp/request error string into an app locale key.
+  String _otpErrorKey(String serverError) => switch (serverError) {
+        'too_soon' => 'otp_too_soon',
+        'invalid_phone' => 'phone_required',
+        _ => 'otp_send_failed',
+      };
+
+  @override
+  Future<AuthResult?> verifyOtp({
+    required String phone,
+    required String code,
+  }) async {
+    final res = await _client
+        .post(
+          _u('/otp/verify'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({'phone': phone, 'code': code}),
+        )
+        .timeout(_timeout);
+    // Correct code but the account was suspended in the meantime.
+    if (res.statusCode == 403) {
+      throw const ApiException('account_inactive', statusCode: 403);
+    }
+    if (res.statusCode != 200) return null;
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    if (j['ok'] != true) return null;
+    _token = j['token'] as String?;
+    return AuthResult(
+      memberId: j['memberId'] as String,
+      name: (j['name'] as String?) ?? '',
+      role: j['role'] == 'admin' ? MemberRole.admin : MemberRole.member,
+      token: _token,
+      groupId: j['groupId'] as String?,
+      groupName: j['groupName'] as String?,
+    );
+  }
+
+  @override
+  Future<void> registerDevice({
+    required String token,
+    required String platform,
+  }) async {
+    if (token.isEmpty || _token == null) return;
+    try {
+      await _client
+          .post(
+            _u('/devices/register'),
+            headers: _headers,
+            body: jsonEncode({'token': token, 'platform': platform}),
+          )
+          .timeout(_timeout);
+    } catch (_) {
+      // Non-fatal: the member just won't get push notifications this session.
+    }
+  }
+
+  @override
+  Future<void> unregisterDevice(String token) async {
+    if (token.isEmpty || _token == null) return;
+    try {
+      await _client
+          .post(
+            _u('/devices/unregister'),
+            headers: _headers,
+            body: jsonEncode({'token': token}),
+          )
+          .timeout(_timeout);
+    } catch (_) {
+      // Non-fatal.
+    }
+  }
+
+  @override
   Future<void> endSession() async {
     final token = _token;
     _token = null;
@@ -123,9 +219,13 @@ class ApiRepository implements Repository {
     return Snapshot(
       groupName: j['groupName'] as String? ?? '',
       term: j['term'] as String? ?? '',
+      rules: GroupRules.fromJson(
+          (j['rules'] as Map?)?.cast<String, dynamic>() ?? const {}),
       members: list('members', Member.fromJson),
       membershipRequests:
           list('membershipRequests', MembershipRequest.fromJson),
+      savingsRequests: list('savingsRequests', SavingRequest.fromJson),
+      shareRequests: list('shareRequests', ShareRequest.fromJson),
       loans: list('loans', Loan.fromJson),
       savings: list('savings', SavingEntry.fromJson),
       repayments: list('repayments', Repayment.fromJson),
@@ -144,9 +244,14 @@ class ApiRepository implements Repository {
       otherExpense: d('otherExpense'),
       interestEarned: d('interestEarned'),
       shareValue: d('shareValue'),
+      shareCapitalCollected: d('shareCapitalCollected'),
       meetingsHeld: (j['meetingsHeld'] as num?)?.toInt() ?? 0,
     );
   }
+
+  @override
+  Future<void> updateRules(GroupRules rules) =>
+      _post('/settings/rules', rules.toJson());
 
   Future<void> _post(String path, Map<String, dynamic> body) async {
     final res = await _client.post(
@@ -223,6 +328,9 @@ class ApiRepository implements Repository {
     required DateTime date,
     required SavingType type,
     required String method,
+    // The server decides pending-vs-confirmed from the caller's role (a member's
+    // deposit is forced to pending + their own id), so asRequest isn't sent.
+    bool asRequest = false,
   }) =>
       _post('/savings', {
         'memberId': memberId,
@@ -231,6 +339,39 @@ class ApiRepository implements Repository {
         'type': type.name,
         'method': method,
       });
+
+  @override
+  Future<void> approveSaving(String id) =>
+      _post('/savings/approve', {'id': id});
+
+  @override
+  Future<void> rejectSaving(String id) => _post('/savings/reject', {'id': id});
+
+  @override
+  Future<void> insertShareTx({
+    required String memberId,
+    required int shareCount,
+    required double amount,
+    required DateTime date,
+    required String method,
+    // The server decides pending-vs-confirmed from the caller's role (a member's
+    // purchase is forced to pending + their own id), so asRequest isn't sent.
+    bool asRequest = false,
+  }) =>
+      _post('/shares', {
+        'memberId': memberId,
+        'shareCount': shareCount,
+        'amount': amount,
+        'date': date.millisecondsSinceEpoch,
+        'method': method,
+      });
+
+  @override
+  Future<void> approveShareTx(String id) =>
+      _post('/shares/approve', {'id': id});
+
+  @override
+  Future<void> rejectShareTx(String id) => _post('/shares/reject', {'id': id});
 
   @override
   Future<void> insertLoan({

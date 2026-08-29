@@ -135,15 +135,32 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
         double.tryParse(_amount.text.replaceAll(RegExp(r'[,\s]'), '')) ?? 0;
     if (loan == null || amount <= 0) return;
 
+    // Capture context-derived objects before the confirm dialog's async gap.
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final appState = context.read<AppState>();
+
+    final ok = await showConfirmSummary(
+      context,
+      title: locale.t('confirm_details'),
+      rows: [
+        (locale.t('member'), loan.memberName),
+        (locale.t('amount'), Fmt.tzs(amount)),
+        (locale.t('payment_method'), method),
+        (locale.t('date'), Fmt.date(_date)),
+      ],
+      confirmLabel: locale.t('confirm'),
+      cancelLabel: locale.t('cancel'),
+    );
+    if (!ok || !mounted) return;
+
     // Keep the chosen day but stamp the actual time of entry, so the
     // transaction history shows a real time instead of midnight.
     final now = DateTime.now();
     final when = DateTime(
         _date.year, _date.month, _date.day, now.hour, now.minute, now.second);
 
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    final error = await context.read<AppState>().repayLoan(
+    final error = await appState.repayLoan(
           loanId: loan.id,
           amount: amount,
           date: when,

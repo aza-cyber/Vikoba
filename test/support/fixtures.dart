@@ -48,4 +48,5 @@ Snapshot demoSnapshot() => Snapshot(
       interestEarned: 0,
       shareValue: 5000,
       meetingsHeld: 0,
+      rules: GroupRules.defaults(),
     );

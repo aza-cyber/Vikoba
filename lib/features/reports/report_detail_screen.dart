@@ -1,9 +1,15 @@
+import 'dart:io' show File;
+
+import 'package:excel/excel.dart' as xls;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
@@ -60,6 +66,11 @@ class ReportDetailScreen extends StatelessWidget {
             icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: locale.t('download_pdf'),
             onPressed: () => _downloadPdf(context, report, state, locale),
+          ),
+          IconButton(
+            icon: const Icon(Icons.grid_on_outlined),
+            tooltip: locale.t('download_excel'),
+            onPressed: () => _downloadExcel(context, report, state, locale),
           ),
           IconButton(
             icon: const Icon(Icons.copy_outlined),
@@ -403,6 +414,118 @@ class ReportDetailScreen extends StatelessWidget {
         ),
       );
     }
+  }
+
+  Future<void> _downloadExcel(
+    BuildContext context,
+    _Report report,
+    AppState state,
+    LocaleProvider locale,
+  ) async {
+    final generatedOn = Fmt.date(DateTime.now());
+    try {
+      final bytes = _asExcel(report, state, locale, generatedOn);
+      final filename = '${_fileName(report.title)}.xlsx';
+      // On the web there is no filesystem, so hand the bytes to share_plus
+      // directly (it makes a blob download). On mobile/desktop, stage the bytes
+      // in the temp dir and share that file — mirroring the PDF flow.
+      final XFile xfile;
+      if (kIsWeb) {
+        xfile = XFile.fromData(bytes, mimeType: _xlsxMime, name: filename);
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$filename');
+        await file.writeAsBytes(bytes, flush: true);
+        xfile = XFile(file.path, mimeType: _xlsxMime, name: filename);
+      }
+      await Share.shareXFiles([xfile], subject: report.title);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.primary,
+          content: Text(locale.t('excel_ready')),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFC0392B),
+          content: Text(locale.t('excel_failed')),
+        ),
+      );
+    }
+  }
+
+  static const _xlsxMime =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  /// Builds a real .xlsx workbook: a header block (group / term / generated
+  /// date), the summary figures, then the data table — the same content as the
+  /// PDF, but as spreadsheet cells the treasurer can sort and total.
+  Uint8List _asExcel(
+    _Report report,
+    AppState state,
+    LocaleProvider locale,
+    String generatedOn,
+  ) {
+    final book = xls.Excel.createExcel();
+    // Rename the default sheet rather than adding a second one (which would
+    // leave an empty 'Sheet1' behind).
+    final defaultSheet = book.getDefaultSheet()!;
+    const sheetName = 'Report';
+    book.rename(defaultSheet, sheetName);
+    final sheet = book[sheetName];
+
+    final titleStyle = xls.CellStyle(bold: true, fontSize: 14);
+    final headerStyle = xls.CellStyle(
+      bold: true,
+      backgroundColorHex: xls.ExcelColor.fromHexString('#E8F5E9'),
+    );
+    final labelStyle = xls.CellStyle(bold: true);
+
+    var row = 0;
+
+    void writeRow(List<String> values, {xls.CellStyle? style}) {
+      for (var col = 0; col < values.length; col++) {
+        final cell = sheet.cell(
+            xls.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+        cell.value = xls.TextCellValue(values[col]);
+        if (style != null) cell.cellStyle = style;
+      }
+      row++;
+    }
+
+    // Header block.
+    writeRow([report.title], style: titleStyle);
+    writeRow(['${state.groupName} — ${locale.t('term_label')}: ${state.term}']);
+    writeRow(['${locale.t('report_generated_on')}: $generatedOn']);
+    row++; // blank spacer
+
+    // Summary figures (label / value pairs).
+    if (report.summary.isNotEmpty) {
+      writeRow([locale.t('summary')], style: labelStyle);
+      for (final item in report.summary) {
+        writeRow([item.$1, item.$2]);
+      }
+      row++; // blank spacer
+    }
+
+    // Data table.
+    if (report.rows.isEmpty) {
+      writeRow([locale.t('no_records')]);
+    } else {
+      writeRow(report.columns, style: headerStyle);
+      for (final r in report.rows) {
+        writeRow(r);
+      }
+    }
+
+    final encoded = book.encode();
+    if (encoded == null) {
+      throw StateError('Excel encoding returned no bytes');
+    }
+    return Uint8List.fromList(encoded);
   }
 
   Future<Uint8List> _asPdf(

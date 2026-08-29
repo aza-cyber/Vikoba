@@ -96,14 +96,29 @@ class _LoansScreenState extends State<LoansScreen> {
               onRefresh: () async {
                 await state.refresh();
               },
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-                itemCount: loans.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, i) =>
-                    _LoanTile(loan: loans[i], locale: locale),
-              ),
+              child: loans.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 120),
+                        EmptyState(
+                          icon: Icons.handshake_outlined,
+                          title: _tab == 0
+                              ? locale.t('no_ongoing_loans')
+                              : _tab == 1
+                                  ? locale.t('no_paid_loans')
+                                  : locale.t('no_loan_requests'),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+                      itemCount: loans.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) =>
+                          _LoanTile(loan: loans[i], locale: locale),
+                    ),
             ),
           ),
         ],

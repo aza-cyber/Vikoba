@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/l10n/locale_provider.dart';
 import '../../core/state/app_state.dart';
-import '../../core/state/settings_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common.dart';
 
@@ -28,10 +27,10 @@ class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill from the group's meeting defaults.
-    final s = context.read<SettingsStore>();
-    _location.text = s.meetingLocation;
-    final parts = s.meetingStartTime.split(':');
+    // Pre-fill from this group's meeting defaults.
+    final r = context.read<AppState>().rules;
+    _location.text = r.meetingLocation;
+    final parts = r.meetingStartTime.split(':');
     _time = TimeOfDay(
       hour: int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 10,
       minute: int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0,

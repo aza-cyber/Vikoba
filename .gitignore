@@ -21,4 +21,11 @@ build/
 
 # Misc
 *.log
+*.err
 .DS_Store
+
+# Local DB dumps/backups (may contain real member data)
+vikoba_api/backups/
+
+# Local env overrides (docker compose)
+.env

@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:vikoba/core/l10n/locale_provider.dart';
 import 'package:vikoba/core/state/app_state.dart';
-import 'package:vikoba/core/state/settings_store.dart';
 import 'package:vikoba/features/shell/main_shell.dart';
 
 Future<void> _pump(WidgetTester tester, Size size) async {
@@ -17,13 +16,11 @@ Future<void> _pump(WidgetTester tester, Size size) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  final settings = await SettingsStore.load();
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider.value(value: AppState(Snapshot.empty())),
-        ChangeNotifierProvider.value(value: settings),
       ],
       child: const MaterialApp(home: MainShell()),
     ),

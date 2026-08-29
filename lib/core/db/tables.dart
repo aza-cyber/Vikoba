@@ -75,6 +75,24 @@ class Savings extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A member's share purchase — buying [shareCount] shares for [amount] money
+/// (shareCount × the share price at purchase time). Like [Savings] it carries a
+/// status: 'confirmed' (owned + counts toward the fund) or 'pending' (a member
+/// bought shares, awaiting an officer's approval). Owned shares are derived by
+/// summing confirmed purchases on top of the member's opening [Members.shares].
+class ShareTx extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()();
+  IntColumn get shareCount => integer()();
+  RealColumn get amount => real()();
+  TextColumn get method => text().withDefault(const Constant('cash'))();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get status => text().withDefault(const Constant('confirmed'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class Loans extends Table {
   TextColumn get id => text()();
   TextColumn get memberId => text()();

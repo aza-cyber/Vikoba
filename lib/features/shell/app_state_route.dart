@@ -16,3 +16,11 @@ Route<T> appStateRoute<T>(BuildContext context, Widget page) {
     ),
   );
 }
+
+/// Swaps the current shell for [shell] while keeping the same group session,
+/// so an admin can flip between the admin panel and their own member panel
+/// without logging out. Replaces (not stacks) the route, so repeated toggling
+/// never piles shells on the navigation stack.
+void switchShell(BuildContext context, Widget shell) {
+  Navigator.of(context).pushReplacement(appStateRoute(context, shell));
+}

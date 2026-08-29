@@ -1822,6 +1822,386 @@ class SavingsCompanion extends UpdateCompanion<Saving> {
   }
 }
 
+class $ShareTxTable extends ShareTx with TableInfo<$ShareTxTable, ShareTxData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShareTxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _memberIdMeta =
+      const VerificationMeta('memberId');
+  @override
+  late final GeneratedColumn<String> memberId = GeneratedColumn<String>(
+      'member_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _shareCountMeta =
+      const VerificationMeta('shareCount');
+  @override
+  late final GeneratedColumn<int> shareCount = GeneratedColumn<int>(
+      'share_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _methodMeta = const VerificationMeta('method');
+  @override
+  late final GeneratedColumn<String> method = GeneratedColumn<String>(
+      'method', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('cash'));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('confirmed'));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, memberId, shareCount, amount, method, date, status];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'share_tx';
+  @override
+  VerificationContext validateIntegrity(Insertable<ShareTxData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('member_id')) {
+      context.handle(_memberIdMeta,
+          memberId.isAcceptableOrUnknown(data['member_id']!, _memberIdMeta));
+    } else if (isInserting) {
+      context.missing(_memberIdMeta);
+    }
+    if (data.containsKey('share_count')) {
+      context.handle(
+          _shareCountMeta,
+          shareCount.isAcceptableOrUnknown(
+              data['share_count']!, _shareCountMeta));
+    } else if (isInserting) {
+      context.missing(_shareCountMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('method')) {
+      context.handle(_methodMeta,
+          method.isAcceptableOrUnknown(data['method']!, _methodMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShareTxData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShareTxData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      memberId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}member_id'])!,
+      shareCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}share_count'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      method: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}method'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+    );
+  }
+
+  @override
+  $ShareTxTable createAlias(String alias) {
+    return $ShareTxTable(attachedDatabase, alias);
+  }
+}
+
+class ShareTxData extends DataClass implements Insertable<ShareTxData> {
+  final String id;
+  final String memberId;
+  final int shareCount;
+  final double amount;
+  final String method;
+  final DateTime date;
+  final String status;
+  const ShareTxData(
+      {required this.id,
+      required this.memberId,
+      required this.shareCount,
+      required this.amount,
+      required this.method,
+      required this.date,
+      required this.status});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['member_id'] = Variable<String>(memberId);
+    map['share_count'] = Variable<int>(shareCount);
+    map['amount'] = Variable<double>(amount);
+    map['method'] = Variable<String>(method);
+    map['date'] = Variable<DateTime>(date);
+    map['status'] = Variable<String>(status);
+    return map;
+  }
+
+  ShareTxCompanion toCompanion(bool nullToAbsent) {
+    return ShareTxCompanion(
+      id: Value(id),
+      memberId: Value(memberId),
+      shareCount: Value(shareCount),
+      amount: Value(amount),
+      method: Value(method),
+      date: Value(date),
+      status: Value(status),
+    );
+  }
+
+  factory ShareTxData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShareTxData(
+      id: serializer.fromJson<String>(json['id']),
+      memberId: serializer.fromJson<String>(json['memberId']),
+      shareCount: serializer.fromJson<int>(json['shareCount']),
+      amount: serializer.fromJson<double>(json['amount']),
+      method: serializer.fromJson<String>(json['method']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      status: serializer.fromJson<String>(json['status']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'memberId': serializer.toJson<String>(memberId),
+      'shareCount': serializer.toJson<int>(shareCount),
+      'amount': serializer.toJson<double>(amount),
+      'method': serializer.toJson<String>(method),
+      'date': serializer.toJson<DateTime>(date),
+      'status': serializer.toJson<String>(status),
+    };
+  }
+
+  ShareTxData copyWith(
+          {String? id,
+          String? memberId,
+          int? shareCount,
+          double? amount,
+          String? method,
+          DateTime? date,
+          String? status}) =>
+      ShareTxData(
+        id: id ?? this.id,
+        memberId: memberId ?? this.memberId,
+        shareCount: shareCount ?? this.shareCount,
+        amount: amount ?? this.amount,
+        method: method ?? this.method,
+        date: date ?? this.date,
+        status: status ?? this.status,
+      );
+  ShareTxData copyWithCompanion(ShareTxCompanion data) {
+    return ShareTxData(
+      id: data.id.present ? data.id.value : this.id,
+      memberId: data.memberId.present ? data.memberId.value : this.memberId,
+      shareCount:
+          data.shareCount.present ? data.shareCount.value : this.shareCount,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      method: data.method.present ? data.method.value : this.method,
+      date: data.date.present ? data.date.value : this.date,
+      status: data.status.present ? data.status.value : this.status,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShareTxData(')
+          ..write('id: $id, ')
+          ..write('memberId: $memberId, ')
+          ..write('shareCount: $shareCount, ')
+          ..write('amount: $amount, ')
+          ..write('method: $method, ')
+          ..write('date: $date, ')
+          ..write('status: $status')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, memberId, shareCount, amount, method, date, status);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShareTxData &&
+          other.id == this.id &&
+          other.memberId == this.memberId &&
+          other.shareCount == this.shareCount &&
+          other.amount == this.amount &&
+          other.method == this.method &&
+          other.date == this.date &&
+          other.status == this.status);
+}
+
+class ShareTxCompanion extends UpdateCompanion<ShareTxData> {
+  final Value<String> id;
+  final Value<String> memberId;
+  final Value<int> shareCount;
+  final Value<double> amount;
+  final Value<String> method;
+  final Value<DateTime> date;
+  final Value<String> status;
+  final Value<int> rowid;
+  const ShareTxCompanion({
+    this.id = const Value.absent(),
+    this.memberId = const Value.absent(),
+    this.shareCount = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.method = const Value.absent(),
+    this.date = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShareTxCompanion.insert({
+    required String id,
+    required String memberId,
+    required int shareCount,
+    required double amount,
+    this.method = const Value.absent(),
+    required DateTime date,
+    this.status = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        memberId = Value(memberId),
+        shareCount = Value(shareCount),
+        amount = Value(amount),
+        date = Value(date);
+  static Insertable<ShareTxData> custom({
+    Expression<String>? id,
+    Expression<String>? memberId,
+    Expression<int>? shareCount,
+    Expression<double>? amount,
+    Expression<String>? method,
+    Expression<DateTime>? date,
+    Expression<String>? status,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (memberId != null) 'member_id': memberId,
+      if (shareCount != null) 'share_count': shareCount,
+      if (amount != null) 'amount': amount,
+      if (method != null) 'method': method,
+      if (date != null) 'date': date,
+      if (status != null) 'status': status,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShareTxCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? memberId,
+      Value<int>? shareCount,
+      Value<double>? amount,
+      Value<String>? method,
+      Value<DateTime>? date,
+      Value<String>? status,
+      Value<int>? rowid}) {
+    return ShareTxCompanion(
+      id: id ?? this.id,
+      memberId: memberId ?? this.memberId,
+      shareCount: shareCount ?? this.shareCount,
+      amount: amount ?? this.amount,
+      method: method ?? this.method,
+      date: date ?? this.date,
+      status: status ?? this.status,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (memberId.present) {
+      map['member_id'] = Variable<String>(memberId.value);
+    }
+    if (shareCount.present) {
+      map['share_count'] = Variable<int>(shareCount.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (method.present) {
+      map['method'] = Variable<String>(method.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShareTxCompanion(')
+          ..write('id: $id, ')
+          ..write('memberId: $memberId, ')
+          ..write('shareCount: $shareCount, ')
+          ..write('amount: $amount, ')
+          ..write('method: $method, ')
+          ..write('date: $date, ')
+          ..write('status: $status, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LoansTable extends Loans with TableInfo<$LoansTable, Loan> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -3907,6 +4287,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GroupSettingsTable groupSettings = $GroupSettingsTable(this);
   late final $MembersTable members = $MembersTable(this);
   late final $SavingsTable savings = $SavingsTable(this);
+  late final $ShareTxTable shareTx = $ShareTxTable(this);
   late final $LoansTable loans = $LoansTable(this);
   late final $RepaymentsTable repayments = $RepaymentsTable(this);
   late final $FinesTable fines = $FinesTable(this);
@@ -3921,6 +4302,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         groupSettings,
         members,
         savings,
+        shareTx,
         loans,
         repayments,
         fines,
@@ -4785,6 +5167,201 @@ typedef $$SavingsTableProcessedTableManager = ProcessedTableManager<
     $$SavingsTableUpdateCompanionBuilder,
     (Saving, BaseReferences<_$AppDatabase, $SavingsTable, Saving>),
     Saving,
+    PrefetchHooks Function()>;
+typedef $$ShareTxTableCreateCompanionBuilder = ShareTxCompanion Function({
+  required String id,
+  required String memberId,
+  required int shareCount,
+  required double amount,
+  Value<String> method,
+  required DateTime date,
+  Value<String> status,
+  Value<int> rowid,
+});
+typedef $$ShareTxTableUpdateCompanionBuilder = ShareTxCompanion Function({
+  Value<String> id,
+  Value<String> memberId,
+  Value<int> shareCount,
+  Value<double> amount,
+  Value<String> method,
+  Value<DateTime> date,
+  Value<String> status,
+  Value<int> rowid,
+});
+
+class $$ShareTxTableFilterComposer
+    extends Composer<_$AppDatabase, $ShareTxTable> {
+  $$ShareTxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get shareCount => $composableBuilder(
+      column: $table.shareCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get method => $composableBuilder(
+      column: $table.method, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+}
+
+class $$ShareTxTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShareTxTable> {
+  $$ShareTxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get shareCount => $composableBuilder(
+      column: $table.shareCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get method => $composableBuilder(
+      column: $table.method, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ShareTxTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShareTxTable> {
+  $$ShareTxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get memberId =>
+      $composableBuilder(column: $table.memberId, builder: (column) => column);
+
+  GeneratedColumn<int> get shareCount => $composableBuilder(
+      column: $table.shareCount, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get method =>
+      $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+}
+
+class $$ShareTxTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ShareTxTable,
+    ShareTxData,
+    $$ShareTxTableFilterComposer,
+    $$ShareTxTableOrderingComposer,
+    $$ShareTxTableAnnotationComposer,
+    $$ShareTxTableCreateCompanionBuilder,
+    $$ShareTxTableUpdateCompanionBuilder,
+    (ShareTxData, BaseReferences<_$AppDatabase, $ShareTxTable, ShareTxData>),
+    ShareTxData,
+    PrefetchHooks Function()> {
+  $$ShareTxTableTableManager(_$AppDatabase db, $ShareTxTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShareTxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShareTxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShareTxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> memberId = const Value.absent(),
+            Value<int> shareCount = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String> method = const Value.absent(),
+            Value<DateTime> date = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShareTxCompanion(
+            id: id,
+            memberId: memberId,
+            shareCount: shareCount,
+            amount: amount,
+            method: method,
+            date: date,
+            status: status,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String memberId,
+            required int shareCount,
+            required double amount,
+            Value<String> method = const Value.absent(),
+            required DateTime date,
+            Value<String> status = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShareTxCompanion.insert(
+            id: id,
+            memberId: memberId,
+            shareCount: shareCount,
+            amount: amount,
+            method: method,
+            date: date,
+            status: status,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ShareTxTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ShareTxTable,
+    ShareTxData,
+    $$ShareTxTableFilterComposer,
+    $$ShareTxTableOrderingComposer,
+    $$ShareTxTableAnnotationComposer,
+    $$ShareTxTableCreateCompanionBuilder,
+    $$ShareTxTableUpdateCompanionBuilder,
+    (ShareTxData, BaseReferences<_$AppDatabase, $ShareTxTable, ShareTxData>),
+    ShareTxData,
     PrefetchHooks Function()>;
 typedef $$LoansTableCreateCompanionBuilder = LoansCompanion Function({
   required String id,
@@ -5886,6 +6463,8 @@ class $AppDatabaseManager {
       $$MembersTableTableManager(_db, _db.members);
   $$SavingsTableTableManager get savings =>
       $$SavingsTableTableManager(_db, _db.savings);
+  $$ShareTxTableTableManager get shareTx =>
+      $$ShareTxTableTableManager(_db, _db.shareTx);
   $$LoansTableTableManager get loans =>
       $$LoansTableTableManager(_db, _db.loans);
   $$RepaymentsTableTableManager get repayments =>

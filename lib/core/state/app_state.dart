@@ -15,6 +15,7 @@ class Snapshot {
   final List<Member> members;
   final List<MembershipRequest> membershipRequests;
   final List<SavingRequest> savingsRequests;
+  final List<ShareRequest> shareRequests;
   final List<Loan> loans;
   final List<SavingEntry> savings;
   final List<Repayment> repayments;
@@ -33,6 +34,9 @@ class Snapshot {
   final double otherExpense;
   final double interestEarned;
   final double shareValue;
+  /// Money members have paid to buy shares (confirmed purchases only). Part of
+  /// cash in hand; tracked separately so the share capital can be reported.
+  final double shareCapitalCollected;
   final int meetingsHeld;
 
   /// The group's full editable rulebook (share price, loan terms, meeting
@@ -45,6 +49,7 @@ class Snapshot {
     required this.members,
     this.membershipRequests = const [],
     this.savingsRequests = const [],
+    this.shareRequests = const [],
     required this.loans,
     required this.savings,
     required this.repayments,
@@ -63,6 +68,7 @@ class Snapshot {
     required this.otherExpense,
     required this.interestEarned,
     required this.shareValue,
+    this.shareCapitalCollected = 0,
     required this.meetingsHeld,
     required this.rules,
   });
@@ -428,6 +434,17 @@ class AppState extends ChangeNotifier {
     return _snapshot.savingsRequests.where((s) => s.memberId == id).toList();
   }
 
+  /// Member-submitted share purchases awaiting an officer's confirmation
+  /// (approval queue for officers).
+  List<ShareRequest> get shareRequests => _snapshot.shareRequests;
+
+  /// The signed-in member's own pending share purchases.
+  List<ShareRequest> get myPendingShares {
+    final id = currentMember?.id;
+    if (id == null) return const [];
+    return _snapshot.shareRequests.where((s) => s.memberId == id).toList();
+  }
+
   /// This loan's repayments, newest first — its repayment history.
   List<Repayment> repaymentsForLoan(String loanId) {
     final list = _snapshot.repayments.where((r) => r.loanId == loanId).toList();
@@ -443,6 +460,9 @@ class AppState extends ChangeNotifier {
   int get membersCount => _snapshot.members.length;
   int get totalShares => _snapshot.members.fold(0, (sum, m) => sum + m.shares);
   double get shareCapital => totalShares * _snapshot.shareValue;
+
+  /// Money members have actually paid to own their shares (confirmed purchases).
+  double get shareCapitalCollected => _snapshot.shareCapitalCollected;
   double get distributableProfit => interestEarned + finesCollected;
   double get totalIncome =>
       savingsCollected + repaymentsCollected + finesCollected;
@@ -652,6 +672,41 @@ class AppState extends ChangeNotifier {
   Future<String?> rejectSaving(String id) async {
     if (_repo == null) return 'Not connected.';
     return _run(() => _repo!.rejectSaving(id));
+  }
+
+  /// Member: applies to buy [shareCount] shares for their own account, paying
+  /// the current share price per share. Recorded as pending until an officer
+  /// approves it, at which point the shares are credited and the money counts.
+  Future<String?> requestShares({
+    required int shareCount,
+    required String method,
+  }) async {
+    if (_repo == null) return 'Not connected.';
+    final me = currentMember;
+    if (me == null) return 'Not signed in.';
+    if (shareCount <= 0) return 'shares_min_one';
+    final amount = shareCount * _snapshot.shareValue;
+    return _run(() => _repo!.insertShareTx(
+          memberId: me.id,
+          shareCount: shareCount,
+          amount: amount,
+          date: DateTime.now(),
+          method: method,
+          asRequest: true,
+        ));
+  }
+
+  /// Officer: confirms a member's pending share purchase — credits the shares
+  /// and books the payment into the group fund.
+  Future<String?> approveShares(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.approveShareTx(id));
+  }
+
+  /// Officer: declines a member's pending share purchase (discarded).
+  Future<String?> rejectShares(String id) async {
+    if (_repo == null) return 'Not connected.';
+    return _run(() => _repo!.rejectShareTx(id));
   }
 
   Future<String?> giveLoan({

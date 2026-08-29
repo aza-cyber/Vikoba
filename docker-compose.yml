@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vikoba_app
+      POSTGRES_PASSWORD: ${PGPASSWORD:-change_me}
+      POSTGRES_DB: vikoba
+    volumes:
+      - vikoba_db_data:/var/lib/postgresql/data
+      # Runs once, only when the data volume is first created — bootstraps the
+      # tables + sample admin (see vikoba_api/schema.sql).
+      - ./vikoba_api/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vikoba_app -d vikoba"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./vikoba_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: vikoba
+      PGUSER: vikoba_app
+      PGPASSWORD: ${PGPASSWORD:-change_me}
+      PORT: 8090
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+
+volumes:
+  vikoba_db_data:

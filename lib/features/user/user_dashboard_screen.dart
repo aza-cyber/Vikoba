@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common.dart';
 import '../shell/app_state_route.dart';
+import 'buy_shares_screen.dart';
 import 'deposit_screen.dart';
 
 /// The home screen of the member (user) panel: a personal dashboard showing the
@@ -91,14 +92,26 @@ class UserDashboardScreen extends StatelessWidget {
                   background: AppColors.cardBlueBg,
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context)
-                        .push(appStateRoute(context, const DepositScreen())),
-                    icon: const Icon(Icons.add_circle_outline),
-                    label: Text(locale.t('make_deposit')),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context)
+                            .push(appStateRoute(context, const DepositScreen())),
+                        icon: const Icon(Icons.add_circle_outline),
+                        label: Text(locale.t('make_deposit')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context)
+                            .push(appStateRoute(context, const BuySharesScreen())),
+                        icon: const Icon(Icons.pie_chart_outline, size: 18),
+                        label: Text(locale.t('buy_shares')),
+                      ),
+                    ),
+                  ],
                 ),
                 if (state.myPendingDeposits.isNotEmpty) ...[
                   const SizedBox(height: 22),
@@ -106,6 +119,13 @@ class UserDashboardScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   for (final d in state.myPendingDeposits)
                     _PendingDepositTile(deposit: d, locale: locale),
+                ],
+                if (state.myPendingShares.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  SectionHeader(title: locale.t('pending_shares')),
+                  const SizedBox(height: 8),
+                  for (final s in state.myPendingShares)
+                    _PendingShareTile(request: s, locale: locale),
                 ],
                 const SizedBox(height: 22),
                 SectionHeader(title: locale.t('recent_activity')),
@@ -145,6 +165,52 @@ class _PendingDepositTile extends StatelessWidget {
                           fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 2),
                   Text('${deposit.method} · ${Fmt.date(deposit.requestedOn)}',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
+                ],
+              ),
+            ),
+            StatusChip(
+              label: locale.t('pending'),
+              color: AppColors.meetings,
+              background: AppColors.cardBlueBg,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A member's own pending share purchase, shown on their dashboard until an
+/// officer confirms or rejects it.
+class _PendingShareTile extends StatelessWidget {
+  final ShareRequest request;
+  final LocaleProvider locale;
+  const _PendingShareTile({required this.request, required this.locale});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            const Icon(Icons.pie_chart_outline,
+                size: 20, color: AppColors.shareOut),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      '${request.shareCount} ${locale.t('shares')} · '
+                      '${Fmt.tzs(request.amount)}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('${request.method} · ${Fmt.date(request.requestedOn)}',
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.textMuted)),
                 ],

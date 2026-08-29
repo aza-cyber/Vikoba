@@ -9,6 +9,7 @@ import '../../widgets/common.dart';
 import '../shell/app_state_route.dart';
 import '../shell/shell_scope.dart';
 import 'deposit_requests_screen.dart';
+import 'share_requests_screen.dart';
 
 class SavingsScreen extends StatefulWidget {
   const SavingsScreen({super.key});
@@ -56,6 +57,16 @@ class _SavingsScreenState extends State<SavingsScreen> {
         leading: const ShellLeading(),
         title: Text(locale.t('savings_title')),
         actions: [
+          IconButton(
+            tooltip: locale.t('share_requests'),
+            icon: Badge.count(
+              count: state.shareRequests.length,
+              isLabelVisible: state.shareRequests.isNotEmpty,
+              child: const Icon(Icons.pie_chart_outline),
+            ),
+            onPressed: () => Navigator.of(context)
+                .push(appStateRoute(context, const ShareRequestsScreen())),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: IconButton(

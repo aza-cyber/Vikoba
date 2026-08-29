@@ -162,6 +162,13 @@ class DriftRepository implements Repository {
         allSavingRows.where((s) => s.status != 'pending').toList();
     final pendingSavingRows =
         allSavingRows.where((s) => s.status == 'pending').toList();
+    final allShareRows = await db.select(db.shareTx).get();
+    // Only CONFIRMED share purchases count toward owned shares / the fund;
+    // member-submitted pending buys surface as shareRequests until approved.
+    final shareRows =
+        allShareRows.where((s) => s.status != 'pending').toList();
+    final pendingShareRows =
+        allShareRows.where((s) => s.status == 'pending').toList();
     final loanRows = await db.select(db.loans).get();
     final repayRows = await db.select(db.repayments).get();
     final fineRows = await db.select(db.fines).get();
@@ -176,6 +183,11 @@ class DriftRepository implements Repository {
             s.memberId == memberId &&
             (social ? s.type == 'social' : s.type != 'social'))
         .fold(0.0, (sum, s) => sum + s.amount);
+    // Shares a member has bought and had confirmed — added to their opening
+    // share count to give the shares they actually own.
+    int sharesBought(String memberId) => shareRows
+        .where((s) => s.memberId == memberId)
+        .fold(0, (sum, s) => sum + s.shareCount);
     // A member's fines balance is only what they still OWE (unpaid penalties).
     double sumFines(String memberId) => fineRows
         .where((f) => f.memberId == memberId && !f.paid)
@@ -218,7 +230,8 @@ class DriftRepository implements Repository {
         id: m.id,
         name: m.name,
         phone: m.phone,
-        shares: m.shares,
+        // Owned shares = opening allotment + confirmed purchases.
+        shares: m.shares + sharesBought(m.id),
         status: loanBal > 0 ? mdl.MemberStatus.borrower : mdl.MemberStatus.active,
         savings: sumSavings(m.id, social: false),
         loanBalance: loanBal,
@@ -289,6 +302,9 @@ class DriftRepository implements Repository {
     final repaymentsCollected = repayRows.fold(0.0, (a, r) => a + r.amount);
     final finesCollected =
         fineRows.where((f) => f.paid).fold(0.0, (a, f) => a + f.amount);
+    // Money members paid to buy shares — real cash into the fund.
+    final shareCapitalCollected =
+        shareRows.fold(0.0, (a, s) => a + s.amount);
     final loansDisbursed = loanRows
         .where((l) =>
             l.status != mdl.LoanStatus.request.name &&
@@ -298,7 +314,8 @@ class DriftRepository implements Repository {
         savingsCollected +
         socialCollected +
         repaymentsCollected +
-        finesCollected -
+        finesCollected +
+        shareCapitalCollected -
         loansDisbursed -
         settings.meetingExpense -
         settings.otherExpense;
@@ -355,6 +372,18 @@ class DriftRepository implements Repository {
             ))
         .toList();
 
+    final shareRequests = pendingShareRows
+        .map((s) => mdl.ShareRequest(
+              id: s.id,
+              memberId: s.memberId,
+              memberName: nameById[s.memberId] ?? s.memberId,
+              shareCount: s.shareCount,
+              amount: s.amount,
+              method: s.method,
+              requestedOn: s.date,
+            ))
+        .toList();
+
     return Snapshot(
       groupName: settings.name,
       term: settings.term,
@@ -362,6 +391,7 @@ class DriftRepository implements Repository {
       members: members,
       membershipRequests: const [],
       savingsRequests: savingsRequests,
+      shareRequests: shareRequests,
       loans: loans,
       savings: savings,
       repayments: repayments,
@@ -379,6 +409,7 @@ class DriftRepository implements Repository {
       otherExpense: settings.otherExpense,
       interestEarned: settings.interestEarned,
       shareValue: settings.shareValue,
+      shareCapitalCollected: shareCapitalCollected,
       meetingsHeld: settings.meetingsHeld,
     );
   }
@@ -570,6 +601,40 @@ class DriftRepository implements Repository {
   @override
   Future<void> rejectSaving(String id) async {
     await (db.delete(db.savings)
+          ..where((s) => s.id.equals(id) & s.status.equals('pending')))
+        .go();
+  }
+
+  @override
+  Future<void> insertShareTx({
+    required String memberId,
+    required int shareCount,
+    required double amount,
+    required DateTime date,
+    required String method,
+    bool asRequest = false,
+  }) {
+    return db.into(db.shareTx).insert(ShareTxCompanion.insert(
+          id: _id('SH'),
+          memberId: memberId,
+          shareCount: shareCount,
+          amount: amount,
+          method: Value(method),
+          date: date,
+          status: Value(asRequest ? 'pending' : 'confirmed'),
+        ));
+  }
+
+  @override
+  Future<void> approveShareTx(String id) async {
+    await (db.update(db.shareTx)
+          ..where((s) => s.id.equals(id) & s.status.equals('pending')))
+        .write(const ShareTxCompanion(status: Value('confirmed')));
+  }
+
+  @override
+  Future<void> rejectShareTx(String id) async {
+    await (db.delete(db.shareTx)
           ..where((s) => s.id.equals(id) & s.status.equals('pending')))
         .go();
   }

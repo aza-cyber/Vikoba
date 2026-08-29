@@ -1,0 +1,9 @@
+.dart_tool/
+.packages
+build/
+backups/
+test/
+*.log
+*.err
+README.md
+.git/

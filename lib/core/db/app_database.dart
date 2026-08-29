@@ -8,6 +8,7 @@ part 'app_database.g.dart';
   GroupSettings,
   Members,
   Savings,
+  ShareTx,
   Loans,
   Repayments,
   Fines,
@@ -26,7 +27,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -47,6 +48,12 @@ class AppDatabase extends _$AppDatabase {
           // rows default to 'confirmed' so no balance moves.
           if (from < 3) {
             await m.addColumn(savings, savings.status);
+          }
+          // v4: paid share ownership. A new table records share purchases;
+          // owned shares are derived by adding confirmed purchases to each
+          // member's opening share count. No existing data changes.
+          if (from < 4) {
+            await m.createTable(shareTx);
           }
         },
       );

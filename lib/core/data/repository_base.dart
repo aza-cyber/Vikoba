@@ -160,6 +160,26 @@ abstract class Repository {
   /// Officer: declines a member's pending deposit (the row is discarded).
   Future<void> rejectSaving(String id);
 
+  /// Records a share purchase: the member buys [shareCount] shares for [amount]
+  /// (shareCount × the current share price). When [asRequest] is true the
+  /// purchase is pending a member request awaiting an officer's approval
+  /// (offline). Online the server decides pending-vs-confirmed from the caller's
+  /// role. On confirmation the shares are owned and the money joins the fund.
+  Future<void> insertShareTx({
+    required String memberId,
+    required int shareCount,
+    required double amount,
+    required DateTime date,
+    required String method,
+    bool asRequest,
+  });
+
+  /// Officer: confirms a member's pending share purchase (shares credited).
+  Future<void> approveShareTx(String id);
+
+  /// Officer: declines a member's pending share purchase (the row is discarded).
+  Future<void> rejectShareTx(String id);
+
   Future<void> insertLoan({
     required String memberId,
     required double principal,

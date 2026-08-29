@@ -381,6 +381,43 @@ class SavingRequest {
       );
 }
 
+/// A member-submitted share purchase awaiting an officer's confirmation. Buying
+/// shares brings real money into the group fund, so — like a deposit — it counts
+/// toward nothing until approved: on approval it credits the member's owned-share
+/// count and its [amount] joins the group's cash. Mirrors [SavingRequest].
+class ShareRequest {
+  final String id;
+  final String memberId;
+  final String memberName;
+  final int shareCount;
+  final double amount;
+  final String method;
+  final DateTime requestedOn;
+
+  const ShareRequest({
+    required this.id,
+    required this.memberId,
+    required this.memberName,
+    required this.shareCount,
+    required this.amount,
+    required this.method,
+    required this.requestedOn,
+  });
+
+  String get initials => initialsOf(memberName);
+
+  factory ShareRequest.fromJson(Map<String, dynamic> j) => ShareRequest(
+        id: j['id'] as String? ?? '',
+        memberId: j['memberId'] as String? ?? '',
+        memberName: j['memberName'] as String? ?? '',
+        shareCount: (j['shareCount'] as num?)?.toInt() ?? 0,
+        amount: (j['amount'] as num?)?.toDouble() ?? 0,
+        method: j['method'] as String? ?? '',
+        requestedOn: DateTime.fromMillisecondsSinceEpoch(
+            (j['date'] as num?)?.toInt() ?? 0),
+      );
+}
+
 /// A group office bearer (leadership / committee member).
 class Officer {
   final String id;

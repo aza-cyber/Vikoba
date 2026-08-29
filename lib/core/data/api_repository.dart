@@ -225,6 +225,7 @@ class ApiRepository implements Repository {
       membershipRequests:
           list('membershipRequests', MembershipRequest.fromJson),
       savingsRequests: list('savingsRequests', SavingRequest.fromJson),
+      shareRequests: list('shareRequests', ShareRequest.fromJson),
       loans: list('loans', Loan.fromJson),
       savings: list('savings', SavingEntry.fromJson),
       repayments: list('repayments', Repayment.fromJson),
@@ -243,6 +244,7 @@ class ApiRepository implements Repository {
       otherExpense: d('otherExpense'),
       interestEarned: d('interestEarned'),
       shareValue: d('shareValue'),
+      shareCapitalCollected: d('shareCapitalCollected'),
       meetingsHeld: (j['meetingsHeld'] as num?)?.toInt() ?? 0,
     );
   }
@@ -344,6 +346,32 @@ class ApiRepository implements Repository {
 
   @override
   Future<void> rejectSaving(String id) => _post('/savings/reject', {'id': id});
+
+  @override
+  Future<void> insertShareTx({
+    required String memberId,
+    required int shareCount,
+    required double amount,
+    required DateTime date,
+    required String method,
+    // The server decides pending-vs-confirmed from the caller's role (a member's
+    // purchase is forced to pending + their own id), so asRequest isn't sent.
+    bool asRequest = false,
+  }) =>
+      _post('/shares', {
+        'memberId': memberId,
+        'shareCount': shareCount,
+        'amount': amount,
+        'date': date.millisecondsSinceEpoch,
+        'method': method,
+      });
+
+  @override
+  Future<void> approveShareTx(String id) =>
+      _post('/shares/approve', {'id': id});
+
+  @override
+  Future<void> rejectShareTx(String id) => _post('/shares/reject', {'id': id});
 
   @override
   Future<void> insertLoan({

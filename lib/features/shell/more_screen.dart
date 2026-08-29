@@ -16,6 +16,7 @@ import '../shareout/shareout_screen.dart';
 import '../user/user_account_screen.dart';
 import '../user/user_loans_screen.dart';
 import 'app_state_route.dart';
+import 'user_shell.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -113,6 +114,17 @@ class MoreScreen extends StatelessWidget {
                     color: AppColors.primary, fontWeight: FontWeight.w600)),
             onTap: () => locale.toggle(),
           ),
+          // Let an admin who is also a member flip to their own member panel to
+          // manage their personal account, then flip back.
+          if (state.currentMember != null) ...[
+            const SizedBox(height: 10),
+            _SettingRow(
+              icon: Icons.swap_horiz_rounded,
+              label: locale.t('switch_to_member_view'),
+              color: AppColors.primary,
+              onTap: () => switchShell(context, const UserShell()),
+            ),
+          ],
           const SizedBox(height: 10),
           _SettingRow(
             icon: Icons.logout,
